@@ -37,7 +37,7 @@
 
 
 ## Stage 8 security gate
-- [ ] Set `REDIS_URL` in production and verify Redis connectivity; use authenticated/TLS transport when Redis is outside the private network.
+- [ ] Set `REDIS_PASSWORD` and verify the resulting production `REDIS_URL`/Redis connectivity; use authenticated/TLS transport when Redis is outside the private network.
 - [ ] Generate and securely store a 32-byte `DATA_ENCRYPTION_KEY`; retain the previous key only during planned rotation.
 - [ ] Verify HTTPS and `__Host-` session cookies in production.
 - [ ] Verify CSP, HSTS, Permissions-Policy, frame and referrer protections at the deployed host.
@@ -51,3 +51,16 @@
 - [ ] Confirm production Redis uses authenticated/TLS transport when hosted outside the private application network.
 - [ ] Confirm the production encryption key rotation procedure and previous-key retirement window.
 - [ ] Verify account deletion, password change, export reauthentication, session expiry, and logout behavior end to end.
+
+## Stage 9 operations gate
+
+- [ ] `bash scripts/check-ops.sh` passes
+- [ ] production GitHub environment approval is configured
+- [ ] production deploy concurrency is protected
+- [ ] TLS certificate/key exist outside Git and renewal is active
+- [ ] `/healthz` is monitored externally
+- [ ] database backup schedule is active
+- [ ] restore drill has been performed
+- [ ] migration runner is the only schema deployment path
+- [ ] production images use immutable release tags
+- [ ] rollback release tag is documented

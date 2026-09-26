@@ -171,3 +171,13 @@ Validation errors use `code=invalid_request` and include only field paths/codes,
 The API applies endpoint-specific rate limits, bounded request bodies, bounded page sizes, bounded bulk operations and bounded child notification batches. OWASP identifies missing limits on records per page, batch operations and other resource dimensions as an API security concern. citeturn335036search11
 
 The current Express stack runs with Helmet, TLS-required production configuration, input validation and rate limits. Express recommends TLS for sensitive APIs, Helmet for security headers, input validation, and protection against authorization brute force. citeturn872130search1
+
+
+## Operations endpoints
+
+- `GET /health/live` — liveness only; safe for process/container checks.
+- `GET /health/ready` — readiness check for PostgreSQL and Redis.
+- `GET /healthz` — production edge health endpoint exposed by Nginx.
+- `GET /v1/meta` — API/contract feature metadata for compatibility diagnostics.
+
+The API does not run schema migrations during normal application startup. Production deployments run the dedicated migration job first.

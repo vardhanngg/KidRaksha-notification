@@ -11,7 +11,7 @@ import { createSession, getSession, deleteSession, refreshSessionActivity, cooki
 import { randomToken, sha256, encryptText, decryptText, timingSafeEqualHex } from "./crypto.js";
 import { addClient, clientCount, finishReplay, publishEvent, replayEvents, streamReady } from "./events.js";
 import logger from "./logger.js";
-import { createRateLimiters, closeRateLimiter, waitForRateLimiter } from "./rate-limit.js";
+import { createRateLimiters, closeRateLimiter, waitForRateLimiter, rateLimiterHealth } from "./rate-limit.js";
 import { decodeCursor, decodeNotificationCursor, encodeCursor, notificationCursorFromRow } from "./pagination.js";
 import { PLANS, planFor, planFromProviderId, hmacSha256, createRazorpaySubscription } from "./billing.js";
 import { effectivePlan, subscriptionAccess } from "./entitlements.js";
@@ -120,6 +120,43 @@ async function healthHandler(req, res) {
     res.status(503).json({ ok: false, service: "kidraksha-api", database: { status: "unavailable" }, requestId: req.requestId });
   }
 }
+app.get("/health/live", (_req, res) => {
+  res.json({ ok: true, service: "kidraksha-api", status: "alive", requestId: _req.requestId });
+});
+
+async function readinessHandler(req, res) {
+  const started = process.hrtime.bigint();
+  let database = { status: "ok", latencyMs: 0 };
+  let redis = { configured: false, status: "disabled" };
+  try {
+    const dbStarted = process.hrtime.bigint();
+    await pool.query("SELECT 1");
+    database.latencyMs = Number((Number(process.hrtime.bigint() - dbStarted) / 1e6).toFixed(2));
+    redis = await rateLimiterHealth();
+    const ready = database.status === "ok" && (!redis.configured || redis.status === "ok");
+    return res.status(ready ? 200 : 503).json({
+      ok: ready,
+      service: "kidraksha-api",
+      status: ready ? "ready" : "not_ready",
+      database,
+      redis,
+      latencyMs: Number((Number(process.hrtime.bigint() - started) / 1e6).toFixed(2)),
+      requestId: req.requestId
+    });
+  } catch {
+    return res.status(503).json({
+      ok: false,
+      service: "kidraksha-api",
+      status: "not_ready",
+      database: { status: "unavailable" },
+      redis,
+      requestId: req.requestId
+    });
+  }
+}
+
+app.get("/health/ready", readinessHandler);
+app.get("/v1/health/ready", readinessHandler);
 app.get("/health", healthHandler);
 app.get("/v1/health", healthHandler);
 app.get("/v1/meta", (_req, res) => {
@@ -1516,26 +1553,34 @@ app.use((err, req, res, _next) => {
 
 await waitForRateLimiter();
 const server = app.listen(port, () => logger.info({ port, apiVersion: API_VERSION, contractVersion: API_CONTRACT_VERSION }, "api_listening"));
+server.requestTimeout = 30_000;
+server.headersTimeout = 35_000;
+server.keepAliveTimeout = 65_000;
 
+let shuttingDown = false;
 async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
   logger.info({ signal }, "api_shutdown");
+  const forceTimer = setTimeout(() => {
+    logger.error("api_shutdown_timeout");
+    process.exit(1);
+  }, 15_000);
+  forceTimer.unref();
   server.close(async () => {
-    try { await closeRateLimiter(); } catch {}
-    try { await pool.end(); } catch {}
+    try { await closeRateLimiter(); } catch (err) { logger.warn({ err }, "rate_limiter_close_failed"); }
+    try { await pool.end(); } catch (err) { logger.warn({ err }, "db_pool_close_failed"); }
+    clearTimeout(forceTimer);
     process.exit(0);
   });
 }
 process.once("SIGTERM", () => void shutdown("SIGTERM"));
 process.once("SIGINT", () => void shutdown("SIGINT"));
-
-setInterval(async () => {
-  try {
-    await pool.query("SELECT purge_expired_notifications()");
-    await pool.query("DELETE FROM sessions WHERE expires_at<now() OR last_seen_at<now()-interval '8 hours'");
-    await pool.query("DELETE FROM pairing_codes WHERE used_at IS NOT NULL OR expires_at<now()-interval '1 day'");
-    await pool.query(`DELETE FROM realtime_events WHERE created_at < now() - make_interval(days => ${REALTIME_EVENT_RETENTION_DAYS})`);
-    await pool.query("UPDATE devices SET sharing_enabled=false WHERE revoked_at IS NOT NULL");
-  } catch (err) {
-    logger.error({ err }, "maintenance_failed");
-  }
-}, 60 * 60 * 1000).unref();
+process.once("uncaughtException", (err) => {
+  logger.fatal({ err }, "uncaught_exception");
+  void shutdown("uncaughtException");
+});
+process.once("unhandledRejection", (err) => {
+  logger.fatal({ err }, "unhandled_rejection");
+  void shutdown("unhandledRejection");
+});

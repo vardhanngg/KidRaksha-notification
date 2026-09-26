@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+**/node_modules
+.next
+**/.next
+.env
+.env.local
+.env.*
+!.env.example
+!.env.production.example
+*.log
+*.dump
+*.sql.gz

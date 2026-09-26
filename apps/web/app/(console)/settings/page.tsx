@@ -32,7 +32,7 @@ export default function SettingsPage(){
     <ReauthDialog open={reauthExport} title="Confirm your password" body="Exporting your account includes notification history and device data. Enter your current password to continue." confirmLabel="Export data" busy={exportBusy} onCancel={()=>setReauthExport(false)} onConfirm={(password)=>{void exportData(password)}}/>
     <ConfirmDialog open={confirmDelete} title="Delete your account permanently?" body="This action cannot be undone. Your KidRaksha account and stored notification data will be permanently removed." confirmLabel="Continue" danger onCancel={()=>setConfirmDelete(false)} onConfirm={()=>{setConfirmDelete(false);setReauthDelete(true)}}/>
     <ReauthDialog open={reauthDelete} title="Confirm your password" body="For your protection, enter your current password to permanently delete this account." confirmLabel="Delete account" danger busy={deleting} onCancel={()=>setReauthDelete(false)} onConfirm={deleteAccount}/>
-    {toast&&<Toast {...toast} onClose={()=>setToast(null)}/>} 
+    {toast&&<Toast {...toast} onClose={()=>setToast(null)}/>}
   </>;
 }
 

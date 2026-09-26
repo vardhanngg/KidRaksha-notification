@@ -109,15 +109,19 @@ Complete.
 - export/deletion security controls and release security gate
 - Play monitoring/privacy disclosure review
 
-## Stage 9 — Operations
+## Stage 9 — Operations & deployment ✅
+Complete.
 
-- Docker/Nginx production deployment
-- database backup/restore
-- health monitoring
-- log/alert strategy
-- staging environment
-- secret rotation
-- migration workflow
+- health-gated Docker Compose topology
+- dedicated migration runner with advisory lock and checksums
+- dedicated maintenance worker
+- liveness/readiness health endpoints
+- production Nginx/TLS configuration for HTTPS and SSE
+- non-root API/web containers
+- PostgreSQL backup/restore tooling and restore-drill guidance
+- production/staging deployment workflows with protected GitHub environments and concurrency
+- deployment-host preflight and external health-check scripts
+- rollback and secret-rotation runbooks
 
 ## Stage 10 — Release readiness
 

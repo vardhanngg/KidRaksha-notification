@@ -1,6 +1,7 @@
 
 import pg from "pg";
 import dotenv from "dotenv";
+import logger from "./logger.js";
 dotenv.config();
 
 const { Pool } = pg;
@@ -26,3 +27,6 @@ export async function tx(fn) {
     client.release();
   }
 }
+
+
+pool.on("error", (err) => logger.error({ err }, "db_pool_error"));

@@ -37,6 +37,19 @@ export async function waitForRateLimiter() {
   if (redisReady) await redisReady;
 }
 
+export async function rateLimiterHealth() {
+  if (!process.env.REDIS_URL) return { configured: false, status: "disabled" };
+  if (!redisClient?.isReady) return { configured: true, status: "unavailable" };
+  const started = process.hrtime.bigint();
+  try {
+    await redisClient.ping();
+    const latencyMs = Number(process.hrtime.bigint() - started) / 1e6;
+    return { configured: true, status: "ok", latencyMs: Number(latencyMs.toFixed(2)) };
+  } catch {
+    return { configured: true, status: "unavailable" };
+  }
+}
+
 export async function closeRateLimiter() {
   try { await redisReady; } catch {}
   if (redisClient?.isOpen) await redisClient.quit();

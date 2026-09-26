@@ -11,6 +11,7 @@
     "check": "bash scripts/check-product.sh",
     "check:realtime": "bash scripts/check-realtime.sh",
     "check:security": "bash scripts/check-security.sh",
-    "check:web": "bash scripts/check-web-ui.sh"
+    "check:web": "bash scripts/check-web-ui.sh",
+    "check:ops": "bash scripts/check-ops.sh"
   }
 }
