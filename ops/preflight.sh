@@ -24,4 +24,4 @@ decoded_bytes=$(printf '%s' "$DATA_ENCRYPTION_KEY" | base64 -d 2>/dev/null | wc 
 command -v docker >/dev/null 2>&1 || { echo 'docker is required' >&2; exit 1; }
 docker compose version >/dev/null 2>&1 || { echo 'docker compose plugin is required' >&2; exit 1; }
 
-echo 'KidRaksha production preflight: PASS'
+echo 'KidSuraksha production preflight: PASS'
