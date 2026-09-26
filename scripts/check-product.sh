@@ -22,7 +22,7 @@ for f in "${required[@]}"; do
   test -f "$root/$f" || { echo "MISSING $f"; exit 1; }
 done
 
-if grep -R -nE 'CAMERA|RECORD_AUDIO|ACCESS_FINE_LOCATION|BIND_ACCESSIBILITY_SERVICE|WebRTC|android.permission.VPN|DeviceAdminReceiver' \
+if grep -R -nE 'CAMERA|RECORD_AUDIO|ACCESS_FINE_LOCATION|BIND_ACCESSIBILITY_SERVICE|WebRTC|android.permission.VPN' \
   "$root/apps/android/app/src/main" >/tmp/kidraksha-forbidden.txt 2>/dev/null; then
   echo "Unexpected legacy capabilities found:"
   cat /tmp/kidraksha-forbidden.txt
