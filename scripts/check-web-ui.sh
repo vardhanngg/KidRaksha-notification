@@ -39,4 +39,4 @@ if grep -R -n 'new EventSource' "$web/app" "$web/components" --include='*.tsx' -
   exit 1
 fi
 grep -q 'RealtimeProvider' "$web/lib/realtime/client.tsx" || { echo "Missing shared realtime provider."; exit 1; }
-echo "KidRaksha web UI check: PASS"
+echo "KidSuraksha web UI check: PASS"
