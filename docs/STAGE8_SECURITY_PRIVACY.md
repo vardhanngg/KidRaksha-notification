@@ -2,7 +2,7 @@
 
 ## Security boundary
 
-KidRaksha uses a server-side parent session in an HttpOnly, Secure, SameSite=Strict `__Host-` cookie in production. The browser never stores an authentication token in localStorage/sessionStorage. CSRF tokens are double-submitted from a public cookie and are stored hashed server-side; pre-Stage-8 sessions are upgraded lazily.
+KidSuraksha uses a server-side parent session in an HttpOnly, Secure, SameSite=Strict `__Host-` cookie in production. The browser never stores an authentication token in localStorage/sessionStorage. CSRF tokens are double-submitted from a public cookie and are stored hashed server-side; pre-Stage-8 sessions are upgraded lazily.
 
 Parent state-changing requests also validate their Origin against `PUBLIC_WEB_ORIGIN` in production.
 
@@ -38,7 +38,7 @@ Account deletion and creation of a paid subscription require the current passwor
 
 ## Platform/privacy alignment
 
-The child app remains transparent: it uses the user-enabled Notification Listener, an explicit content-sharing choice, a visible KidRaksha status notification while sharing is active, and no hidden monitoring capability. Play's parental monitoring category and disclosure requirements must still be validated in the final Play Console submission.
+The child app remains transparent: it uses the user-enabled Notification Listener, an explicit content-sharing choice, a visible KidSuraksha status notification while sharing is active, and no hidden monitoring capability. Play's parental monitoring category and disclosure requirements must still be validated in the final Play Console submission.
 
 
 ### Password changes and sensitive exports
