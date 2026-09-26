@@ -50,7 +50,7 @@ export async function createSession(pool, parentId) {
 export async function getSession(pool, token) {
   if (!token) return null;
   const { rows } = await pool.query(
-    `SELECT s.id, s.parent_id, s.csrf_token, s.csrf_token_hash, s.last_seen_at, s.last_reauthenticated_at,
+    `SELECT s.id, s.parent_id, s.csrf_token_hash, s.last_seen_at, s.last_reauthenticated_at,
             p.email, p.display_name, p.retention_days
        FROM sessions s JOIN parents p ON p.id=s.parent_id
       WHERE s.token_hash=$1

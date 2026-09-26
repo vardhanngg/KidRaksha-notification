@@ -85,3 +85,21 @@
 - Added recent-password confirmation for billing changes and account deletion.
 - Hardened Android UI screenshots and documented backup exclusion/secret handling.
 - Added Stage 8 security/privacy documentation and migration 008.
+
+## Stage 9 — Operations & deployment
+
+- added transactional, checksum-verified database migration runner
+- separated scheduled maintenance from API startup
+- added API liveness/readiness probes and graceful shutdown hardening
+- hardened API/web Docker images to run as non-root
+- added production Nginx TLS/SSE configuration
+- added PostgreSQL backup/restore and operational preflight tooling
+- added protected staging/production GitHub Actions deployment workflows
+- added rollback, secret-rotation and restore-drill runbooks
+
+## Stage 10 — Release readiness
+- final Android AAB/signed-release workflow and release identity controls
+- public privacy/legal release materials and Play submission drafts
+- password recovery with one-time expiring reset tokens and session revocation
+- final release/source gate and production smoke test tooling
+- final physical-device, Play Console, billing and production acceptance runbook

@@ -109,24 +109,24 @@ Complete.
 - export/deletion security controls and release security gate
 - Play monitoring/privacy disclosure review
 
-## Stage 9 — Operations
+## Stage 9 — Operations & deployment ✅
+Complete.
 
-- Docker/Nginx production deployment
-- database backup/restore
-- health monitoring
-- log/alert strategy
-- staging environment
-- secret rotation
-- migration workflow
+- health-gated Docker Compose topology
+- dedicated migration runner with advisory lock and checksums
+- dedicated maintenance worker
+- liveness/readiness health endpoints
+- production Nginx/TLS configuration for HTTPS and SSE
+- non-root API/web containers
+- PostgreSQL backup/restore tooling and restore-drill guidance
+- production/staging deployment workflows with protected GitHub environments and concurrency
+- deployment-host preflight and external health-check scripts
+- rollback and secret-rotation runbooks
 
-## Stage 10 — Release readiness
+## Stage 10 — Release readiness ✅
 
-- Android release build/AAB
-- real-device testing
-- Play Console declarations
-- privacy/data-safety review
-- live billing verification
-- production smoke tests
-- launch checklist
+Release-candidate engineering is complete. The repository includes Android signing gates, password recovery, final Play/privacy documentation, production smoke tooling, CI release artifacts, signed-AAB signature verification and the final source/release checks.
 
-External device, Play Console, payment-provider and production-infrastructure verification are intentionally kept as the final pre-launch validation step.
+The remaining work is **launch verification in the real environment**: physical Android devices, Google Play Console declarations/review, live Razorpay checkout/webhooks, production TLS/Redis/PostgreSQL/SMTP, backup restore drill, and external production smoke tests. Those are operational acceptance steps rather than additional product features.
+
+See `docs/STAGE10_FINAL.md` and `docs/STAGE10_VERIFICATION.md` for the exact gate and evidence to record.

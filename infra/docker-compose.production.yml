@@ -1,0 +1,127 @@
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kidraksha
+      POSTGRES_USER: kidraksha
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kidraksha -d kidraksha"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks: [backend]
+
+  redis:
+    image: redis:8.10.2-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "900", "1", "--save", "300", "10", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD}"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    networks: [backend]
+
+  migrate:
+    image: ${API_IMAGE:-ghcr.io/vardhanngg/kidraksha-api}:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://kidraksha:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/kidraksha
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+    command: ["node", "scripts/migrate.js"]
+
+  api:
+    image: ${API_IMAGE:-ghcr.io/vardhanngg/kidraksha-api}:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgres://kidraksha:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/kidraksha
+      PUBLIC_WEB_ORIGIN: https://${DOMAIN:?Set DOMAIN}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?Set DATA_ENCRYPTION_KEY}
+      DATA_ENCRYPTION_KEY_PREVIOUS: ${DATA_ENCRYPTION_KEY_PREVIOUS:-}
+      PAIRING_CODE_SECRET: ${PAIRING_CODE_SECRET:?Set PAIRING_CODE_SECRET}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:?Set RAZORPAY_WEBHOOK_SECRET}
+      RAZORPAY_PLAN_STARTER: ${RAZORPAY_PLAN_STARTER:-}
+      RAZORPAY_PLAN_FAMILY: ${RAZORPAY_PLAN_FAMILY:-}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD}@redis:6379
+      DB_POOL_MAX: ${DB_POOL_MAX:-10}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    expose: ["4000"]
+    networks: [backend]
+
+  maintenance:
+    image: ${API_IMAGE:-ghcr.io/vardhanngg/kidraksha-api}:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://kidraksha:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/kidraksha
+      MAINTENANCE_INTERVAL_MS: ${MAINTENANCE_INTERVAL_MS:-3600000}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [backend]
+    command: ["node", "scripts/maintenance.js"]
+
+  web:
+    image: ${WEB_IMAGE:-ghcr.io/vardhanngg/kidraksha-web}:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      API_INTERNAL_ORIGIN: http://api:4000
+      PUBLIC_WEB_ORIGIN: https://${DOMAIN:?Set DOMAIN}
+    depends_on:
+      api:
+        condition: service_healthy
+    expose: ["3000"]
+    networks: [edge, backend]
+
+  nginx:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    init: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-production.conf:/etc/nginx/nginx.conf:ro
+      - ${TLS_DIR:?Set TLS_DIR}:/etc/nginx/tls:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks: [edge, backend]
+
+networks:
+  edge:
+  backend:
+    internal: true
+
+volumes:
+  pgdata:
+  redisdata:

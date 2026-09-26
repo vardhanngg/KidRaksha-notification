@@ -6,12 +6,18 @@ fail(){ echo "SECURITY CHECK FAILED: $1" >&2; exit 1; }
 pass(){ echo "SECURITY: PASS — $1"; }
 
 grep -q 'csrf_token_hash' "$root/services/api/db/schema.sql" || fail "schema missing CSRF hash"
+if grep -qE '^\s*csrf_token TEXT' "$root/services/api/db/schema.sql"; then fail "plaintext CSRF column remains in canonical schema"; fi
+
 grep -q 'last_reauthenticated_at' "$root/services/api/db/schema.sql" || fail "schema missing reauth timestamp"
 grep -q '__Host-kidraksha_session' "$root/services/api/src/auth.js" || fail "production host cookie missing"
 grep -q 'SameSite.*strict\|sameSite: "strict"' "$root/services/api/src/auth.js" || fail "SameSite=Strict missing"
 grep -q 'sec-fetch-site' "$root/services/api/src/server.js" || fail "Fetch Metadata defense missing"
 grep -q 'passwordNeedsRehash' "$root/services/api/src/server.js" || fail "password rehash path missing"
 grep -q '/v1/auth/password' "$root/services/api/src/server.js" || fail "password change endpoint missing"
+grep -q '/v1/auth/password-reset/request' "$root/services/api/src/server.js" || fail "password reset request endpoint missing"
+grep -q '/v1/auth/password-reset/confirm' "$root/services/api/src/server.js" || fail "password reset confirm endpoint missing"
+grep -q 'password_reset_tokens' "$root/services/api/db/schema.sql" || fail "password reset token store missing"
+grep -q 'SMTP_REQUIRE_TLS' "$root/services/api/src/email.js" || fail "SMTP transport TLS control missing"
 grep -q 'refreshSessionActivity' "$root/services/api/src/server.js" || fail "SSE session revocation check missing"
 grep -q 'session.revoked' "$root/apps/web/lib/realtime/client.tsx" || fail "web session revocation handler missing"
 grep -q 'reauthentication_required' "$root/services/api/src/server.js" || fail "sensitive export reauth missing"
