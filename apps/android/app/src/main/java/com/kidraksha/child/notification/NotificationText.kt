@@ -7,7 +7,7 @@ object NotificationText {
             .replace('\u0000'.toString(), "")
             .filter { ch -> ch == '\n' || ch == '\r' || ch == '\t' || !ch.isISOControl() }
             .replace(Regex("[\\t ]+"), " ")
-            .replace(Regex("\\n{3,}"), "\n\n")
+            .replace(Regex("\\n{2,}"), "\n")
             .trim()
         if (cleaned.isEmpty()) return null
         return cleaned.take(maxChars)
