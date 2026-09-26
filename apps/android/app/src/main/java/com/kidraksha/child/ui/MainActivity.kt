@@ -25,6 +25,7 @@ import com.kidraksha.child.service.NotificationCaptureService
 import com.kidraksha.child.service.StatusNotifier
 import com.kidraksha.child.sync.SyncScheduler
 import com.kidraksha.child.sync.SyncManager
+import com.kidraksha.child.device.DevicePolicyController
 
 class MainActivity : Activity() {
     private lateinit var prefs: Prefs
@@ -39,6 +40,7 @@ class MainActivity : Activity() {
         window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
         prefs = Prefs(this)
         secure = SecureStore(this)
+        DevicePolicyController.enforceProtection(this)
         window.statusBarColor = getColor(R.color.kd_bg)
         window.navigationBarColor = getColor(R.color.kd_bg)
         window.decorView.systemUiVisibility = 0
@@ -47,6 +49,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        DevicePolicyController.enforceProtection(this)
         val access = hasNotificationAccess()
         val visibleStatus = !prefs.paired || StatusNotifier.canDisplay(this)
         if (prefs.paired && prefs.sharingEnabled && (!access || !visibleStatus)) {
@@ -137,6 +140,9 @@ class MainActivity : Activity() {
         root.addView(body("Device: ${prefs.deviceName}\nYour parent account can see the status of this device and, when sharing is on, the notifications you have chosen to share."))
         root.addView(space(18))
         root.addView(statusCard("Parent connection", "Connected", true))
+        root.addView(space(8))
+        val protection = DevicePolicyController.protectionStatus(this)
+        root.addView(statusCard("Device protection", when { protection.protected -> "Device Owner · uninstall blocked"; protection.deviceOwner -> "Device Owner · policy needs repair"; else -> "Not managed · uninstall is possible" }, protection.protected))
         root.addView(space(8))
         root.addView(statusCard("Notification Access", if (access) "Connected" else "Needs access", access))
         root.addView(space(8))
