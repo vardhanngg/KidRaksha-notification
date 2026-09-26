@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+set -eu
+ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+VERSION="9.6.1"
+DIST_DIR="${GRADLE_USER_HOME:-$HOME/.gradle}/littlewatch/gradle-$VERSION"
+GRADLE_BIN="$DIST_DIR/bin/gradle"
+if [ ! -x "$GRADLE_BIN" ]; then
+  command -v curl >/dev/null 2>&1 || { echo "curl is required to bootstrap Gradle" >&2; exit 1; }
+  command -v unzip >/dev/null 2>&1 || { echo "unzip is required to bootstrap Gradle" >&2; exit 1; }
+  tmp="${TMPDIR:-/tmp}/littlewatch-gradle-$VERSION.zip"
+  mkdir -p "$DIST_DIR"
+  echo "Downloading Gradle $VERSION..." >&2
+  curl -fL --retry 3 -o "$tmp" "https://services.gradle.org/distributions/gradle-$VERSION-bin.zip"
+  unzip -q "$tmp" -d "${DIST_DIR%/*}"
+  rm -f "$tmp"
+  # The ZIP extracts into gradle-$VERSION already; this symlink keeps the path stable.
+  if [ ! -x "$GRADLE_BIN" ] && [ -x "${DIST_DIR%/*}/gradle-$VERSION/bin/gradle" ]; then
+    rm -rf "$DIST_DIR"
+    mv "${DIST_DIR%/*}/gradle-$VERSION" "$DIST_DIR"
+  fi
+fi
+exec "$GRADLE_BIN" -p "$ROOT_DIR" "$@"

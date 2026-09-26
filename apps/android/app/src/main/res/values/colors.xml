@@ -1,0 +1,11 @@
+
+<resources>
+    <color name="lw_bg">#0B0D12</color>
+    <color name="lw_panel">#12151D</color>
+    <color name="lw_panel_alt">#181C26</color>
+    <color name="lw_text">#F0F2F7</color>
+    <color name="lw_muted">#A3ABB9</color>
+    <color name="lw_accent">#8173F4</color>
+    <color name="lw_green">#42C98A</color>
+    <color name="lw_red">#EF727B</color>
+</resources>

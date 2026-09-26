@@ -1,0 +1,10 @@
+{
+  "name": "littlewatch",
+  "private": true,
+  "workspaces": ["apps/web", "services/api"],
+  "scripts": {
+    "api": "npm --workspace @littlewatch/api run dev",
+    "web": "npm --workspace @littlewatch/web run dev",
+    "check": "bash scripts/check-product.sh"
+  }
+}
