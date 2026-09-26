@@ -76,12 +76,14 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Assemble release AAB
+      - name: Assemble CI release AAB
+        # Production API URL and signing are enforced by release-android.yml.
+        # This CI build only verifies that the release variant packages correctly.
         run: ./gradlew :app:bundleRelease --no-daemon --stacktrace
         env:
-          KIDRAKSHA_API_URL: ${{ secrets.KIDRAKSHA_API_URL }}
+          KIDRAKSHA_API_URL: https://ci.invalid
 
-      - name: Upload release AAB
+      - name: Upload CI release AAB
         uses: actions/upload-artifact@v7
         with:
           name: kidraksha-release-aab
