@@ -110,3 +110,10 @@ The notification engine now normalizes Android notification metadata, protects n
 
 ## Stage 4 reliability
 Notification synchronization uses WorkManager for persistent background execution, with network constraints, exponential backoff, server idempotency, and sync health telemetry. See `docs/STAGE4_RELIABILITY.md`.
+
+
+## Current stage
+
+Stage 6 completes the parent-facing SaaS experience on top of the Stage 5 API. See `docs/STAGE6_PARENT_UI.md` and `docs/STAGE6_VERIFICATION.md`.
+
+Stage 6 application and verification steps are in `STAGE6_APPLY.md`.

@@ -1,0 +1,4 @@
+import PageHeader from "../../components/PageHeader";
+import { Skeleton } from "../../components/ui/UI";
+
+export default function Loading(){return <><PageHeader eyebrow="Parent console" title="Loading workspace" description="Getting the latest account data."/><div className="statsGrid"><Skeleton className="box"/><Skeleton className="box"/><Skeleton className="box"/><Skeleton className="box"/></div><div className="twoCol"><div className="card" style={{minHeight:360}}><div className="panelHeader"><Skeleton className="title"/></div>{Array.from({length:5}).map((_,i)=><div className="notificationItem" key={i}><Skeleton className="box"/><div><Skeleton className="title"/><div style={{height:8}}/><Skeleton className="text"/></div></div>)}</div><div className="sideStack"><Skeleton className="box"/><Skeleton className="box"/></div></div></>}

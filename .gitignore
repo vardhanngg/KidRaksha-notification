@@ -16,3 +16,4 @@ local.properties
 secrets/
 coverage/
 *.log
+*.tsbuildinfo
