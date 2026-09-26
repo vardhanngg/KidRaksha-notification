@@ -6,7 +6,7 @@ export const metadata = {
   metadataBase: new URL(
     process.env.PUBLIC_WEB_ORIGIN || "http://localhost:3000"
   ),
-  title: "KidRaksha — Notification visibility for parents",
+  title: "KidSuraksha — Notification visibility for parents",
   description:
     "A transparent parental notification-sharing service built around consent, security and control.",
 };
