@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../lib/api";
+import { useRealtimeEvent } from "../../lib/realtime/client";
 import { Icon, Toast } from "../../components/ui/UI";
 
 function remaining(expiresAt:string|undefined){return expiresAt?Math.max(0,Math.ceil((new Date(expiresAt).getTime()-Date.now())/1000)):0}
@@ -12,7 +13,15 @@ export default function OnboardingPage(){
   async function loadDevices(){try{const r=await api("/devices");setDeviceCount((r.devices||[]).length)}catch{}}
   useEffect(()=>{loadDevices()},[]);
   useEffect(()=>{if(!expiresAt)return;setSeconds(remaining(expiresAt));const timer=setInterval(()=>setSeconds(remaining(expiresAt)),1000);return()=>clearInterval(timer)},[expiresAt]);
-  useEffect(()=>{if(!code)return;let stopped=false;const es=new EventSource("/api/events/stream");const onPaired=(event:MessageEvent)=>{try{const data=JSON.parse(event.data);if(!stopped){setPairedDevice(data);setCode("");setCodeId("");setIssuedAt("");setExpiresAt("");loadDevices()}}catch{}};es.addEventListener("device.paired",onPaired);const fallback=setInterval(async()=>{try{const r=await api("/devices");const latest=(r.devices||[]).find((d:any)=>!d.revoked_at&&issuedAt&&new Date(d.created_at).getTime()>=new Date(issuedAt).getTime());if(latest&&!stopped){setPairedDevice({deviceId:latest.id,deviceName:latest.name,platform:latest.platform,appVersion:latest.app_version,pairedAt:latest.created_at});setCode("");setCodeId("");setIssuedAt("");setExpiresAt("")}}catch{}},5000);return()=>{stopped=true;es.close();clearInterval(fallback)}},[code,issuedAt]);
+  useRealtimeEvent("device.paired", (payload:any)=>{
+    if (!code || !payload?.deviceId) return;
+    setPairedDevice(payload); setCode(""); setCodeId(""); setIssuedAt(""); setExpiresAt(""); loadDevices();
+  });
+  useEffect(()=>{
+    if(!code || !issuedAt) return;
+    let stopped=false;
+    const fallback=setInterval(async()=>{try{const r=await api("/devices");const latest=(r.devices||[]).find((d:any)=>!d.revoked_at&&new Date(d.created_at).getTime()>=new Date(issuedAt).getTime());if(latest&&!stopped){setPairedDevice({deviceId:latest.id,deviceName:latest.name,platform:latest.platform,appVersion:latest.app_version,pairedAt:latest.created_at});setCode("");setCodeId("");setIssuedAt("");setExpiresAt("")}}catch{}},5000);return()=>{stopped=true;clearInterval(fallback)}
+  },[code,issuedAt]);
   async function generate(){setBusy(true);setError("");try{const r=await api("/devices/pairing-codes",{method:"POST"});setCode(r.code);setCodeId(r.id);setIssuedAt(r.issuedAt);setExpiresAt(r.expiresAt)}catch(e:any){setError(e.message||"Could not create a pairing code.")}finally{setBusy(false)}}
   async function cancel(){if(!codeId)return;setBusy(true);setError("");try{await api(`/devices/pairing-codes/${codeId}`,{method:"DELETE"});setCode("");setCodeId("");setIssuedAt("");setExpiresAt("")}catch(e:any){setError(e.message||"Could not close the pairing code.")}finally{setBusy(false)}}
   async function copy(){try{await navigator.clipboard.writeText(code);setCopied(true);setTimeout(()=>setCopied(false),1800)}catch{setError("Your browser did not allow clipboard access. You can copy the code manually.")}}

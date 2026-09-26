@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../lib/api";
 import PageHeader from "../../../components/PageHeader";
 import { EmptyState, Icon, Skeleton, StatusDot } from "../../../components/ui/UI";
+import { useRealtimeRefresh } from "../../../lib/realtime/client";
 
 function relativeTime(value:string|undefined|null){
   if(!value)return "—";
@@ -31,12 +32,7 @@ export default function DashboardPage(){
     finally{setLoading(false)}
   },[]);
   useEffect(()=>{load()},[load]);
-  useEffect(()=>{
-    const es=new EventSource("/api/events/stream");
-    const refresh=()=>load();
-    ["notification","notification.read","notification.unread","notifications.read-all","notification.deleted","device.paired","device.updated","device.revoked"].forEach(name=>es.addEventListener(name,refresh));
-    return()=>es.close();
-  },[load]);
+  useRealtimeRefresh(["notification","notification.read","notification.unread","notifications.read-all","notifications.bulk-read","notification.deleted","notifications.bulk-deleted","device.paired","device.updated","device.revoked","device.sync.updated"], load);
 
   if(loading)return <><PageHeader eyebrow="Family workspace" title="Overview" description="A clear view of your child's shared notification activity."/><div className="statsGrid"><Skeleton className="box"/><Skeleton className="box"/><Skeleton className="box"/><Skeleton className="box"/></div><div className="twoCol"><div className="card"><div className="panelHeader"><Skeleton className="title"/></div>{Array.from({length:5}).map((_,i)=><div className="notificationItem" key={i}><Skeleton className="box"/><div><Skeleton className="title"/><div style={{height:8}}/><Skeleton className="text"/></div></div>)}</div><div className="sideStack"><Skeleton className="box"/><Skeleton className="box"/></div></div></>;
 

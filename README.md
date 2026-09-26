@@ -95,13 +95,17 @@ This repository was statically reviewed and generated as a complete product foun
 
 ## Current build status
 
-Stages 1–5 are implemented. The repository now includes the KidRaksha SaaS foundation, secure pairing, production notification normalization, durable WorkManager synchronization, offline queue handling, server idempotency, parent-visible sync health, and the completed SaaS API contract. Device-level Android testing and live production verification remain final pre-launch checks.
+Stages 1–7 are implemented. The repository now includes the KidRaksha SaaS foundation, secure pairing, production notification normalization, durable WorkManager synchronization, offline queue handling, server idempotency, parent-visible sync health, the completed SaaS API contract, the polished parent UI, and reconnect-safe realtime updates. Device-level Android testing and live production verification remain final pre-launch checks.
 
 ## Product direction
 KidRaksha is built as a production-oriented SaaS from the beginning: parent accounts, tenant isolation, subscription entitlements, pairing, notification delivery, privacy controls, child-device transparency, and an operator-ready deployment path are part of one coherent architecture.
 
 
 Production account creation records acceptance timestamps for the Terms and Privacy Policy, and the SaaS console provides data export and account deletion controls.
+
+### Stage 7 realtime
+
+The parent console uses one authenticated Server-Sent Events connection per open console tab. Events are durably recorded with monotonic IDs, replayed after reconnect using `Last-Event-ID`/session cursor state, and buffered during replay so live events cannot overtake missed events. Realtime is never the data source of truth; dashboard, inbox and device pages reconcile from the REST API after reconnect/resync.
 
 ### Stage 3
 

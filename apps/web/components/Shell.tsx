@@ -6,6 +6,7 @@ import { ReactNode, useEffect, useState } from "react";
 import Brand from "./Brand";
 import { api } from "../lib/api";
 import { Icon } from "./ui/UI";
+import { RealtimeProvider, useRealtime } from "../lib/realtime/client";
 
 const links = [
   ["/dashboard", "Overview", "grid"],
@@ -15,9 +16,10 @@ const links = [
   ["/settings", "Settings", "settings"]
 ] as const;
 
-export default function Shell({children}:{children:ReactNode}){
+function ShellContent({children}:{children:ReactNode}){
   const path=usePathname(); const router=useRouter();
   const [user,setUser]=useState<any>(null); const [healthy,setHealthy]=useState<boolean|null>(null); const [loading,setLoading]=useState(true); const [open,setOpen]=useState(false);
+  const realtime=useRealtime();
   useEffect(()=>{let mounted=true; Promise.allSettled([api("/auth/session"),api("/health")]).then(([session,health])=>{if(!mounted)return; if(session.status==="fulfilled")setUser(session.value.user); else router.replace("/login"); setHealthy(health.status==="fulfilled");}).finally(()=>{if(mounted)setLoading(false)}); return()=>{mounted=false}},[router]);
   useEffect(()=>{setOpen(false)},[path]);
   async function logout(){try{await api("/auth/logout",{method:"POST"});}finally{router.replace("/");}}
@@ -35,8 +37,12 @@ export default function Shell({children}:{children:ReactNode}){
       </div>
     </aside>
     <main className="main" id="main-content">
-      <header className="topbar"><div className="topbarLeft"><button className="menuButton iconButton" onClick={()=>setOpen(true)} aria-label="Open navigation"><Icon name="menu"/></button><div className="topbarTitle">Parent workspace</div></div><div className="topbarRight"><div className={`connectionState ${healthy===true?"up":healthy===false?"down":"checking"}`}><span className="serviceDot" />{healthy===true?"Connected":healthy===false?"Offline":"Checking"}</div><div className="topbarAvatar" aria-label={user?.displayName||"Parent"}>{String(user?.displayName||"P").slice(0,1).toUpperCase()}</div></div></header>
+      <header className="topbar"><div className="topbarLeft"><button className="menuButton iconButton" onClick={()=>setOpen(true)} aria-label="Open navigation"><Icon name="menu"/></button><div className="topbarTitle">Parent workspace</div></div><div className="topbarRight"><div className={`connectionState ${realtime.status==="live"?"up":realtime.status==="offline"?"down":"checking"}`} title={realtime.lastEventAt?`Last realtime event ${new Date(realtime.lastEventAt).toLocaleTimeString()}`:"Realtime connection"}><span className="serviceDot" />{realtime.status==="live"?"Live":realtime.status==="offline"?"Offline":"Reconnecting"}</div><div className="topbarAvatar" aria-label={user?.displayName||"Parent"}>{String(user?.displayName||"P").slice(0,1).toUpperCase()}</div></div></header>
       <div className="content">{children}</div>
     </main>
   </div>;
+}
+
+export default function Shell({children}:{children:ReactNode}){
+  return <RealtimeProvider><ShellContent>{children}</ShellContent></RealtimeProvider>;
 }
