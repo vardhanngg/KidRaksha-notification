@@ -29,4 +29,4 @@ grep -q 'realtime_events' "$root/services/api/db/schema.sql" || { echo "Schema m
 grep -q 'device.sync.updated' "$server" || { echo "Missing device sync realtime event."; exit 1; }
 grep -q 'notifications.bulk-read' "$server" || { echo "Missing coalesced bulk-read realtime event."; exit 1; }
 grep -q 'notifications.bulk-deleted' "$server" || { echo "Missing coalesced bulk-delete realtime event."; exit 1; }
-echo "KidRaksha realtime check: PASS"
+echo "KidSuraksha realtime check: PASS"
