@@ -95,7 +95,7 @@ This repository was statically reviewed and generated as a complete product foun
 
 ## Current build status
 
-Stage 1 and Stage 2 are implemented. The repository is now a KidRaksha-branded SaaS baseline with secure parent authentication, final-product onboarding/pairing, a guided Android setup flow, realtime pairing events, and the notification-sharing foundation. Stage 3 is the next implementation stage.
+Stages 1–5 are implemented. The repository now includes the KidRaksha SaaS foundation, secure pairing, production notification normalization, durable WorkManager synchronization, offline queue handling, server idempotency, parent-visible sync health, and the completed SaaS API contract. Device-level Android testing and live production verification remain final pre-launch checks.
 
 ## Product direction
 KidRaksha is built as a production-oriented SaaS from the beginning: parent accounts, tenant isolation, subscription entitlements, pairing, notification delivery, privacy controls, child-device transparency, and an operator-ready deployment path are part of one coherent architecture.
@@ -106,3 +106,7 @@ Production account creation records acceptance timestamps for the Terms and Priv
 ### Stage 3
 
 The notification engine now normalizes Android notification metadata, protects notification-key identity with hashing, keeps sensitive content out of identifiers, handles content availability explicitly, and drains the encrypted offline queue in bounded batches.
+
+
+## Stage 4 reliability
+Notification synchronization uses WorkManager for persistent background execution, with network constraints, exponential backoff, server idempotency, and sync health telemetry. See `docs/STAGE4_RELIABILITY.md`.

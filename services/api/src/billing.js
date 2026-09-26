@@ -27,11 +27,22 @@ export async function createRazorpaySubscription({ planId, totalCount = 120 }) {
     throw new Error("Razorpay is not configured");
   }
   const auth = Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString("base64");
-  const response = await fetch("https://api.razorpay.com/v1/subscriptions", {
-    method: "POST",
-    headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ plan_id: planId, total_count: totalCount, customer_notify: 1 })
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let response;
+  try {
+    response = await fetch("https://api.razorpay.com/v1/subscriptions", {
+      method: "POST",
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ plan_id: planId, total_count: totalCount, customer_notify: 1 }),
+      signal: controller.signal
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") throw new Error("Razorpay subscription creation timed out");
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
   const body = await response.json();
   if (!response.ok) throw new Error(body?.error?.description || "Razorpay subscription creation failed");
   return body;

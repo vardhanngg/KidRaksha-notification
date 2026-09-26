@@ -23,3 +23,14 @@
 7. Notifications arrive in the parent inbox and realtime dashboard.
 8. Billing activation occurs only after verified provider webhook processing.
 9. Parent can export or delete the account.
+### Stage 4 synchronization checks
+
+- Offline notification queue retains events and drains after connectivity returns.
+- Duplicate upload after client crash does not create a duplicate parent notification.
+- 401/403 clears local device credentials and stops further uploads.
+- 409 server-side sharing disable is respected locally.
+- Notification Access revocation stops sharing and is reflected in device status.
+- Queue overflow is bounded and the parent sees the cumulative dropped count.
+- Parent Devices page reports last sync, pending count, failures, and offline-loss telemetry.
+- WorkManager work is unique, network-constrained, and its 15-minute periodic cadence is treated as inexact.
+- Android 16 job quota/stop-reason behavior is validated on a real device before release.

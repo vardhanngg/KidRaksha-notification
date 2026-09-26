@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../../lib/api";
 
 function isOnline(lastSeen:string|null|undefined){
-  return !!lastSeen && Date.now()-new Date(lastSeen).getTime()<5*60*1000;
+  return !!lastSeen && Date.now()-new Date(lastSeen).getTime()<30*60*1000;
 }
 
 export default function DevicesPage(){
@@ -49,7 +49,7 @@ export default function DevicesPage(){
         const online=isOnline(d.last_seen_at);
         return <div className="device" key={d.id}>
           <div className="deviceMain"><div className={"deviceLogo "+(online?"online":"")}>KR</div><div><div className="row"><b>{d.name}</b><span className={"badge "+(online?"green":"")}>{online?"Online":"Offline"}</span></div><div className="small muted">Android · {d.app_version||"version unknown"}</div><div className="small muted">{d.last_seen_at?`Last seen ${new Date(d.last_seen_at).toLocaleString()}`:"Not checked in yet"}</div></div></div>
-          <div className="deviceDetails"><span className={"sharingPill "+(d.sharing_enabled?"on":"")}>{d.sharing_enabled?"Sharing on":"Sharing off"}</span><span className="small muted">{d.content_sharing_enabled?"Message content enabled":"Message content off"}</span></div>
+          <div className="deviceDetails"><span className={"sharingPill "+(d.sharing_enabled?"on":"")}>{d.sharing_enabled?"Sharing on":"Sharing off"}</span><span className="small muted">{d.content_sharing_enabled?"Message content enabled":"Message content off"}</span><span className="small muted">{d.pending_count>0?`${d.pending_count} waiting to sync`:d.last_sync_at?`Last sync ${new Date(d.last_sync_at).toLocaleString()}`:"No successful sync yet"}</span>{d.sync_failures>0&&<span className="badge">Sync issue</span>}{d.sync_dropped_count>0&&<span className="badge">{d.sync_dropped_count} not retained offline</span>}</div>
           <div className="tableActions"><button className="btn ghost" onClick={()=>rename(d)}>Rename</button><button className="btn danger" disabled={busy} onClick={()=>revoke(d.id)}>Revoke</button></div>
         </div>
       }) : <div className="deviceEmpty"><div className="setupCheck">+</div><h3>No child devices yet</h3><p className="muted">Create a pairing code to connect your first Android phone.</p><Link href="/onboarding" className="btn accent">Start setup</Link></div>}

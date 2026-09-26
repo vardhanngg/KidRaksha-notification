@@ -70,9 +70,9 @@ class PendingStore(context: Context) : SQLiteOpenHelper(context, "kidraksha_queu
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_pending_id ON pending(id)")
     }
 
-    fun insertIfAbsent(item: QueuedNotification) {
+    fun insertIfAbsent(item: QueuedNotification): Boolean {
         val secure = SecureStore(appContext)
-        writableDatabase.insertWithOnConflict(
+        val rowId = writableDatabase.insertWithOnConflict(
             "pending", null,
             ContentValues().apply {
                 put("client_id", item.clientNotificationId)
@@ -93,6 +93,7 @@ class PendingStore(context: Context) : SQLiteOpenHelper(context, "kidraksha_queu
             },
             SQLiteDatabase.CONFLICT_IGNORE
         )
+        return rowId != -1L
     }
 
     fun take(limit: Int = 50): List<QueuedNotification> {
@@ -127,8 +128,12 @@ class PendingStore(context: Context) : SQLiteOpenHelper(context, "kidraksha_queu
 
     fun clear() { writableDatabase.delete("pending", null, null) }
 
-    fun trimTo(maxRows: Int = 5000) {
-        writableDatabase.delete("pending", "id NOT IN (SELECT id FROM pending ORDER BY id DESC LIMIT ?)", arrayOf(maxRows.toString()))
+    fun trimTo(maxRows: Int = 5000): Int {
+        return writableDatabase.delete(
+            "pending",
+            "id NOT IN (SELECT id FROM pending ORDER BY id DESC LIMIT ?)",
+            arrayOf(maxRows.toString())
+        )
     }
 
     fun remove(ids: List<Long>) {

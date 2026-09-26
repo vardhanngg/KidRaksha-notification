@@ -11,10 +11,16 @@ import { pool, tx } from "./db.js";
 import { createSession, getSession, deleteSession, cookieOptions, publicCsrfCookieOptions, COOKIE_NAME, CSRF_COOKIE, passwordHash, passwordMatches } from "./auth.js";
 import { randomToken, sha256, encryptText, decryptText } from "./crypto.js";
 import { addClient, broadcast } from "./events.js";
+import logger from "./logger.js";
+import { decodeCursor, decodeNotificationCursor, encodeCursor, notificationCursorFromRow } from "./pagination.js";
 import { PLANS, planFor, planFromProviderId, hmacSha256, createRazorpaySubscription } from "./billing.js";
+import { effectivePlan, subscriptionAccess } from "./entitlements.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
+const API_VERSION = "1";
+const API_CONTRACT_VERSION = "5";
+const DEVICE_ONLINE_WINDOW_MS = 30 * 60 * 1000;
 
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
@@ -25,6 +31,27 @@ app.use(helmet({
 
 const allowedOrigin = process.env.PUBLIC_WEB_ORIGIN || "http://localhost:3000";
 app.use(cors({ origin: allowedOrigin, credentials: true }));
+
+app.use((req, res, next) => {
+  const supplied = String(req.header("x-request-id") || "").trim();
+  const requestId = /^[A-Za-z0-9._:-]{1,80}$/.test(supplied) ? supplied : crypto.randomUUID();
+  req.requestId = requestId;
+  res.setHeader("X-Request-ID", requestId);
+  const startedAt = process.hrtime.bigint();
+  res.on("finish", () => {
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+    logger.info({
+      requestId,
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      durationMs: Number(durationMs.toFixed(2)),
+      parentId: req.auth?.parent_id || undefined,
+      deviceId: req.device?.id || undefined
+    }, "http_request");
+  });
+  next();
+});
 
 app.post("/v1/billing/webhook", express.raw({ type: "application/json", limit: "256kb" }), handleBillingWebhook);
 
@@ -37,7 +64,8 @@ app.use((req, res, next) => {
 
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false });
 const pairingLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
-const deviceLimiter = rateLimit({ windowMs: 60 * 1000, limit: 120, standardHeaders: true, legacyHeaders: false });
+const deviceLimiter = rateLimit({ windowMs: 60 * 1000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false });
+const parentApiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 180, standardHeaders: "draft-8", legacyHeaders: false });
 
 function validateRuntimeConfig() {
   if (process.env.NODE_ENV !== "production") return;
@@ -50,16 +78,41 @@ function validateRuntimeConfig() {
 
 validateRuntimeConfig();
 
-async function healthHandler(_req, res) {
+async function healthHandler(req, res) {
+  const started = process.hrtime.bigint();
   try {
     await pool.query("SELECT 1");
-    res.json({ ok: true, service: "kidraksha-api", time: new Date().toISOString() });
+    const latencyMs = Number(process.hrtime.bigint() - started) / 1e6;
+    res.json({
+      ok: true,
+      service: "kidraksha-api",
+      apiVersion: API_VERSION,
+      time: new Date().toISOString(),
+      database: { status: "ok", latencyMs: Number(latencyMs.toFixed(2)) },
+      requestId: req.requestId
+    });
   } catch {
-    res.status(503).json({ ok: false });
+    res.status(503).json({ ok: false, service: "kidraksha-api", database: { status: "unavailable" }, requestId: req.requestId });
   }
 }
 app.get("/health", healthHandler);
 app.get("/v1/health", healthHandler);
+app.get("/v1/meta", (_req, res) => {
+  res.json({
+    apiVersion: API_VERSION,
+    contractVersion: API_CONTRACT_VERSION,
+    service: "kidraksha-api",
+    features: {
+      notificationCursorPagination: true,
+      notificationSearch: true,
+      notificationBulkActions: true,
+      deviceLifecycle: true,
+      auditLog: true,
+      structuredRequestIds: true
+    },
+    limits: { notificationPageSize: 100, notificationBulkSize: 100, notificationUploadBatchSize: 50 }
+  });
+});
 
 app.post("/v1/auth/signup", authLimiter, async (req, res, next) => {
   try {
@@ -71,7 +124,7 @@ app.post("/v1/auth/signup", authLimiter, async (req, res, next) => {
     }).parse(req.body);
 
     const exists = await pool.query("SELECT 1 FROM parents WHERE email=$1", [input.email]);
-    if (exists.rowCount) return res.status(409).json({ error: "An account with that email already exists." });
+    if (exists.rowCount) return sendError(res, req, 409, "An account with that email already exists.", "account_exists");
 
     const id = crypto.randomUUID();
     const result = await tx(async client => {
@@ -106,7 +159,7 @@ app.post("/v1/auth/login", authLimiter, async (req, res, next) => {
     const { rows } = await pool.query("SELECT id,email,password_hash,display_name FROM parents WHERE email=$1", [input.email]);
     const parent = rows[0];
     if (!parent || !passwordMatches(input.password, parent.password_hash)) {
-      return res.status(401).json({ error: "Invalid email or password." });
+      return sendError(res, req, 401, "Invalid email or password.", "invalid_credentials");
     }
 
     const session = await createSession(pool, parent.id);
@@ -162,32 +215,75 @@ app.get("/v1/dashboard/summary", requireParent, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-app.get("/v1/notifications", requireParent, async (req, res, next) => {
+app.get("/v1/notifications", parentApiLimiter, requireParent, async (req, res, next) => {
   try {
-    const search = String(req.query.search || "").trim().slice(0, 120);
-    const unreadOnly = String(req.query.unread || "") === "1";
-    const limit = Math.min(Math.max(Number(req.query.limit || 50), 1), 100);
-    const offset = Math.max(Number(req.query.offset || 0), 0);
-    const result = await getNotifications(req.auth.parent_id, { search, unreadOnly, limit, offset });
+    const input = parseNotificationListQuery(req.query);
+    const result = await getNotifications(req.auth.parent_id, input);
     res.json(result);
   } catch (err) { next(err); }
 });
 
-app.post("/v1/notifications/:id/read", requireParent, requireCsrf, async (req, res, next) => {
+app.get("/v1/notifications/:id", parentApiLimiter, requireParent, async (req, res, next) => {
   try {
-    const id = Number(req.params.id);
-    if (!Number.isSafeInteger(id)) return res.status(400).json({ error: "Invalid notification id." });
+    const id = parseBigIntId(req.params.id);
+    const { rows } = await pool.query(
+      `SELECT n.id,n.package_name,n.app_name,n.notification_type,n.category,n.channel_id,n.group_key,
+              n.is_ongoing,n.is_clearable,n.is_group_summary,n.content_state,n.title_enc,n.body_enc,
+              n.posted_at,n.received_at,n.read_at,d.id AS device_id,d.name AS device_name
+         FROM notifications n
+         JOIN devices d ON d.id=n.device_id
+        WHERE n.id=$1 AND n.parent_id=$2 AND n.deleted_at IS NULL`,
+      [id, req.auth.parent_id]
+    );
+    if (!rows[0]) return sendError(res, req, 404, "Notification not found.", "notification_not_found");
+    res.json({ notification: serializeNotification(rows[0]) });
+  } catch (err) { next(err); }
+});
+
+app.post("/v1/notifications/:id/read", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
+  try {
+    const id = parseBigIntId(req.params.id);
     const result = await pool.query(
       `UPDATE notifications SET read_at=COALESCE(read_at,now())
        WHERE id=$1 AND parent_id=$2 AND deleted_at IS NULL RETURNING id,read_at`,
       [id, req.auth.parent_id]
     );
-    if (!result.rowCount) return res.status(404).json({ error: "Notification not found." });
-    res.json({ ok: true, ...result.rows[0] });
+    if (!result.rowCount) return sendError(res, req, 404, "Notification not found.", "notification_not_found");
+    broadcast(req.auth.parent_id, "notification.read", { id: String(result.rows[0].id), readAt: result.rows[0].read_at });
+    res.json({ ok: true, id: String(result.rows[0].id), readAt: result.rows[0].read_at });
   } catch (err) { next(err); }
 });
 
-app.post("/v1/notifications/read-all", requireParent, requireCsrf, async (req, res, next) => {
+app.post("/v1/notifications/:id/unread", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
+  try {
+    const id = parseBigIntId(req.params.id);
+    const result = await pool.query(
+      `UPDATE notifications SET read_at=NULL
+       WHERE id=$1 AND parent_id=$2 AND deleted_at IS NULL RETURNING id`,
+      [id, req.auth.parent_id]
+    );
+    if (!result.rowCount) return sendError(res, req, 404, "Notification not found.", "notification_not_found");
+    broadcast(req.auth.parent_id, "notification.unread", { id: String(result.rows[0].id) });
+    res.json({ ok: true, id: String(result.rows[0].id), readAt: null });
+  } catch (err) { next(err); }
+});
+
+app.post("/v1/notifications/bulk-read", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
+  try {
+    const ids = parseNotificationIds(req.body);
+    const result = await pool.query(
+      `UPDATE notifications SET read_at=COALESCE(read_at,now())
+       WHERE parent_id=$1 AND id=ANY($2::bigint[]) AND deleted_at IS NULL
+       RETURNING id,read_at`,
+      [req.auth.parent_id, ids]
+    );
+    await audit(req.auth.parent_id, null, "notifications_bulk_read", { requested: ids.length, updated: result.rowCount });
+    for (const row of result.rows) broadcast(req.auth.parent_id, "notification.read", { id: String(row.id), readAt: row.read_at });
+    res.json({ ok: true, count: result.rowCount });
+  } catch (err) { next(err); }
+});
+
+app.post("/v1/notifications/read-all", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
   try {
     const result = await pool.query(
       `UPDATE notifications SET read_at=now()
@@ -195,32 +291,72 @@ app.post("/v1/notifications/read-all", requireParent, requireCsrf, async (req, r
       [req.auth.parent_id]
     );
     await audit(req.auth.parent_id, null, "notifications_read_all", { count: result.rowCount });
+    broadcast(req.auth.parent_id, "notifications.read-all", { count: result.rowCount });
     res.json({ ok: true, count: result.rowCount });
   } catch (err) { next(err); }
 });
 
-app.delete("/v1/notifications/:id", requireParent, requireCsrf, async (req, res, next) => {
+app.delete("/v1/notifications/:id", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
   try {
-    const id = Number(req.params.id);
+    const id = parseBigIntId(req.params.id);
     const result = await pool.query(
       `UPDATE notifications SET deleted_at=now()
        WHERE id=$1 AND parent_id=$2 AND deleted_at IS NULL RETURNING id`,
       [id, req.auth.parent_id]
     );
-    if (!result.rowCount) return res.status(404).json({ error: "Notification not found." });
-    await audit(req.auth.parent_id, null, "notification_deleted", { notificationId: id });
-    res.json({ ok: true });
+    if (!result.rowCount) return sendError(res, req, 404, "Notification not found.", "notification_not_found");
+    await audit(req.auth.parent_id, null, "notification_deleted", { notificationId: String(result.rows[0].id) });
+    broadcast(req.auth.parent_id, "notification.deleted", { id: String(result.rows[0].id) });
+    res.json({ ok: true, id: String(result.rows[0].id) });
   } catch (err) { next(err); }
 });
 
-app.get("/v1/devices", requireParent, async (req, res, next) => {
+app.post("/v1/notifications/bulk-delete", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
   try {
+    const ids = parseNotificationIds(req.body);
+    const result = await pool.query(
+      `UPDATE notifications SET deleted_at=now()
+       WHERE parent_id=$1 AND id=ANY($2::bigint[]) AND deleted_at IS NULL
+       RETURNING id`,
+      [req.auth.parent_id, ids]
+    );
+    await audit(req.auth.parent_id, null, "notifications_bulk_deleted", { requested: ids.length, deleted: result.rowCount });
+    for (const row of result.rows) broadcast(req.auth.parent_id, "notification.deleted", { id: String(row.id) });
+    res.json({ ok: true, count: result.rowCount });
+  } catch (err) { next(err); }
+});
+
+app.get("/v1/devices", parentApiLimiter, requireParent, async (req, res, next) => {
+  try {
+    const includeRevoked = String(req.query.includeRevoked || "0") === "1";
     const { rows } = await pool.query(
-      `SELECT id,name,platform,app_version,sharing_enabled,content_sharing_enabled,last_seen_at,created_at,updated_at
-         FROM devices WHERE parent_id=$1 AND revoked_at IS NULL ORDER BY created_at DESC`,
+      `SELECT id,name,platform,app_version,sharing_enabled,content_sharing_enabled,last_seen_at,last_sync_at,
+              sync_failures,last_sync_error,pending_count,sync_dropped_count,created_at,updated_at,revoked_at
+         FROM devices
+        WHERE parent_id=$1 ${includeRevoked ? "" : "AND revoked_at IS NULL"}
+        ORDER BY created_at DESC`,
       [req.auth.parent_id]
     );
-    res.json({ devices: rows });
+    const activeCount = rows.filter(row => !row.revoked_at).length;
+    res.json({
+      devices: rows.map(serializeDevice),
+      activeCount: includeRevoked ? activeCount : rows.length,
+      revokedCount: includeRevoked ? rows.length - activeCount : 0,
+      includeRevoked
+    });
+  } catch (err) { next(err); }
+});
+
+app.get("/v1/devices/:id", parentApiLimiter, requireParent, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id,name,platform,app_version,sharing_enabled,content_sharing_enabled,last_seen_at,last_sync_at,
+              sync_failures,last_sync_error,pending_count,sync_dropped_count,created_at,updated_at,revoked_at
+         FROM devices WHERE id=$1 AND parent_id=$2`,
+      [req.params.id, req.auth.parent_id]
+    );
+    if (!rows[0]) return sendError(res, req, 404, "Device not found.", "device_not_found");
+    res.json({ device: serializeDevice(rows[0]) });
   } catch (err) { next(err); }
 });
 
@@ -231,8 +367,19 @@ app.post("/v1/devices/pairing-codes", pairingLimiter, requireParent, requireCsrf
       "SELECT COUNT(*)::int AS count FROM devices WHERE parent_id=$1 AND revoked_at IS NULL",
       [req.auth.parent_id]
     );
+    if (deviceLimit === 0) {
+      return res.status(402).json({
+        error: "Your trial has ended. Choose a paid plan to connect a child device.",
+        code: "subscription_required",
+        requestId: req.requestId
+      });
+    }
     if (activeRows[0].count >= deviceLimit) {
-      return res.status(403).json({ error: `Your current plan supports ${deviceLimit} child device${deviceLimit === 1 ? "" : "s"}.` });
+      return res.status(403).json({
+        error: `Your current plan supports ${deviceLimit} child device${deviceLimit === 1 ? "" : "s"}.`,
+        code: "device_limit_reached",
+        requestId: req.requestId
+      });
     }
 
     await pool.query(
@@ -259,13 +406,31 @@ app.delete("/v1/devices/pairing-codes/:id", requireParent, requireCsrf, async (r
        RETURNING id`,
       [req.params.id, req.auth.parent_id]
     );
-    if (!result.rowCount) return res.status(404).json({ error: "Pairing code not found or already closed." });
+    if (!result.rowCount) return sendError(res, req, 404, "Pairing code not found or already closed.", "pairing_code_not_found");
     await audit(req.auth.parent_id, null, "pairing_code_cancelled", { pairingCodeId: req.params.id });
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
 
-app.post("/v1/devices/:id/rename", requireParent, requireCsrf, async (req, res, next) => {
+app.patch("/v1/devices/:id", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
+  try {
+    const input = z.object({ name: z.string().trim().min(1).max(80) }).strict().parse(req.body);
+    const result = await pool.query(
+      `UPDATE devices SET name=$1,updated_at=now()
+         WHERE id=$2 AND parent_id=$3 AND revoked_at IS NULL
+         RETURNING id,name,platform,app_version,sharing_enabled,content_sharing_enabled,last_seen_at,last_sync_at,
+                   sync_failures,last_sync_error,pending_count,sync_dropped_count,created_at,updated_at,revoked_at`,
+      [input.name, req.params.id, req.auth.parent_id]
+    );
+    if (!result.rowCount) return sendError(res, req, 404, "Device not found.", "device_not_found");
+    await audit(req.auth.parent_id, req.params.id, "device_updated", { changedFields: ["name"] });
+    const device = serializeDevice(result.rows[0]);
+    broadcast(req.auth.parent_id, "device.updated", { device });
+    res.json({ ok: true, device });
+  } catch (err) { next(err); }
+});
+
+app.post("/v1/devices/:id/rename", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
   try {
     const name = z.object({ name: z.string().trim().min(1).max(80) }).parse(req.body).name;
     const result = await pool.query(
@@ -274,8 +439,9 @@ app.post("/v1/devices/:id/rename", requireParent, requireCsrf, async (req, res, 
        RETURNING id,name`,
       [name, req.params.id, req.auth.parent_id]
     );
-    if (!result.rowCount) return res.status(404).json({ error: "Device not found." });
-    await audit(req.auth.parent_id, req.params.id, "device_renamed", { name });
+    if (!result.rowCount) return sendError(res, req, 404, "Device not found.", "device_not_found");
+    await audit(req.auth.parent_id, req.params.id, "device_renamed", { changedFields: ["name"] });
+    broadcast(req.auth.parent_id, "device.updated", { deviceId: req.params.id, name });
     res.json({ ok: true, device: result.rows[0] });
   } catch (err) { next(err); }
 });
@@ -283,16 +449,16 @@ app.post("/v1/devices/:id/rename", requireParent, requireCsrf, async (req, res, 
 app.get("/v1/device/status", deviceLimiter, requireDevice, async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id,name,platform,app_version,sharing_enabled,content_sharing_enabled,last_seen_at,created_at,revoked_at
+      `SELECT id,name,platform,app_version,sharing_enabled,content_sharing_enabled,last_seen_at,last_sync_at,sync_failures,last_sync_error,pending_count,sync_dropped_count,created_at,revoked_at
          FROM devices WHERE id=$1`, [req.device.id]
     );
     const device = rows[0];
-    if (!device || device.revoked_at) return res.status(401).json({ error: "Device is not authorized." });
-    res.json({ device, serverTime: new Date().toISOString() });
+    if (!device || device.revoked_at) return sendError(res, req, 401, "Device is not authorized.", "device_not_authorized");
+    res.json({ device: serializeDevice(device), serverTime: new Date().toISOString() });
   } catch (err) { next(err); }
 });
 
-app.post("/v1/devices/:id/revoke", requireParent, requireCsrf, async (req, res, next) => {
+app.post("/v1/devices/:id/revoke", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
   try {
     const id = req.params.id;
     const result = await pool.query(
@@ -300,20 +466,96 @@ app.post("/v1/devices/:id/revoke", requireParent, requireCsrf, async (req, res, 
        WHERE id=$1 AND parent_id=$2 AND revoked_at IS NULL RETURNING id`,
       [id, req.auth.parent_id]
     );
-    if (!result.rowCount) return res.status(404).json({ error: "Device not found." });
+    if (!result.rowCount) return sendError(res, req, 404, "Device not found.", "device_not_found");
     await audit(req.auth.parent_id, id, "device_revoked", {});
+    broadcast(req.auth.parent_id, "device.revoked", { deviceId: id });
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
 
-app.get("/v1/settings", requireParent, async (req, res, next) => {
+app.delete("/v1/devices/:id", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `UPDATE devices SET revoked_at=COALESCE(revoked_at,now()), sharing_enabled=false, content_sharing_enabled=false, updated_at=now()
+       WHERE id=$1 AND parent_id=$2 AND revoked_at IS NULL RETURNING id`,
+      [req.params.id, req.auth.parent_id]
+    );
+    if (!result.rowCount) return sendError(res, req, 404, "Device not found.", "device_not_found");
+    await audit(req.auth.parent_id, req.params.id, "device_revoked", { method: "delete" });
+    broadcast(req.auth.parent_id, "device.revoked", { deviceId: req.params.id });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+app.get("/v1/audit", parentApiLimiter, requireParent, async (req, res, next) => {
+  try {
+    const input = z.object({
+      limit: z.coerce.number().int().min(1).max(100).default(50),
+      cursor: z.string().max(512).optional(),
+      action: z.string().trim().min(1).max(80).optional(),
+      deviceId: z.string().uuid().optional()
+    }).parse(req.query);
+    let cursor = null;
+    if (input.cursor) {
+      try { cursor = decodeCursor(input.cursor); }
+      catch { throw httpError(400, "Invalid audit pagination cursor.", "invalid_cursor"); }
+    }
+    const values = [req.auth.parent_id];
+    const where = ["a.parent_id=$1"];
+    if (input.action) {
+      values.push(input.action);
+      where.push(`a.action=$${values.length}`);
+    }
+    if (input.deviceId) {
+      values.push(input.deviceId);
+      where.push(`a.device_id=$${values.length}`);
+    }
+    if (cursor) {
+      values.push(cursor.timestamp);
+      const timeIndex = values.length;
+      values.push(cursor.id);
+      const idIndex = values.length;
+      where.push(`(a.created_at < $${timeIndex}::timestamptz OR (a.created_at = $${timeIndex}::timestamptz AND a.id < $${idIndex}::bigint))`);
+    }
+    const limitIndex = values.length + 1;
+    values.push(input.limit + 1);
+    const { rows } = await pool.query(
+      `SELECT a.id,a.device_id,a.actor_type,a.action,a.metadata,a.created_at,a.created_at::text AS created_at_cursor
+         FROM audit_log a
+        WHERE ${where.join(" AND ")}
+        ORDER BY a.created_at DESC,a.id DESC
+        LIMIT $${limitIndex}`,
+      values
+    );
+    const hasMore = rows.length > input.limit;
+    if (hasMore) rows.pop();
+    const nextCursor = hasMore && rows.length
+      ? encodeCursor({ timestamp: rows[rows.length - 1].created_at_cursor, id: rows[rows.length - 1].id })
+      : null;
+    res.json({
+      items: rows.map(row => ({
+        id: String(row.id),
+        deviceId: row.device_id,
+        actorType: row.actor_type,
+        action: row.action,
+        metadata: row.metadata || {},
+        createdAt: row.created_at
+      })),
+      pageSize: rows.length,
+      hasMore,
+      nextCursor
+    });
+  } catch (err) { next(err); }
+});
+
+app.get("/v1/settings", parentApiLimiter, requireParent, async (req, res, next) => {
   try {
     const subscription = await getSubscription(req.auth.parent_id);
     res.json({ retentionDays: req.auth.retention_days, subscription });
   } catch (err) { next(err); }
 });
 
-app.patch("/v1/settings", requireParent, requireCsrf, async (req, res, next) => {
+app.patch("/v1/settings", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
   try {
     const retentionDays = z.object({ retentionDays: z.union([z.literal(7),z.literal(30),z.literal(60),z.literal(90)]) }).parse(req.body).retentionDays;
     const plan = (await getSubscription(req.auth.parent_id)).plan;
@@ -324,7 +566,7 @@ app.patch("/v1/settings", requireParent, requireCsrf, async (req, res, next) => 
   } catch (err) { next(err); }
 });
 
-app.get("/v1/account/export", requireParent, async (req, res, next) => {
+app.get("/v1/account/export", parentApiLimiter, requireParent, async (req, res, next) => {
   try {
     const parentId = req.auth.parent_id;
     const [parent, devices, notifications, subscription] = await Promise.all([
@@ -377,27 +619,56 @@ app.get("/v1/billing/status", requireParent, async (req, res, next) => {
   catch (err) { next(err); }
 });
 
-app.post("/v1/billing/subscription", requireParent, requireCsrf, async (req, res, next) => {
+app.post("/v1/billing/subscription", parentApiLimiter, requireParent, requireCsrf, async (req, res, next) => {
+  let client = null;
+  let lockAcquired = false;
   try {
     const planKey = z.object({ planKey: z.enum(["starter","family"]) }).parse(req.body).planKey;
     const plan = planFor(planKey);
     const planId = planKey === "starter" ? process.env.RAZORPAY_PLAN_STARTER : process.env.RAZORPAY_PLAN_FAMILY;
-    if (!planId) return res.status(503).json({ error: "Billing is being configured. Please try again later." });
+    if (!planId) return sendError(res, req, 503, "Billing is being configured. Please try again later.", "billing_unavailable");
+
+    client = await pool.connect();
+    await client.query("SELECT pg_advisory_lock(hashtext($1))", [req.auth.parent_id]);
+    lockAcquired = true;
+    const current = await client.query(
+      `SELECT provider_subscription_id,status,plan_key
+         FROM subscriptions WHERE parent_id=$1`,
+      [req.auth.parent_id]
+    );
+    const existing = current.rows[0];
+    if (existing?.provider_subscription_id && ["created","pending","authenticated","active"].includes(String(existing.status).toLowerCase())) {
+      return res.status(409).json({
+        error: "A subscription is already in progress or active. Manage the existing subscription instead of creating another one.",
+        code: "subscription_already_exists",
+        requestId: req.requestId
+      });
+    }
 
     const subscription = await createRazorpaySubscription({ planId });
-    await pool.query(
+    const updated = await client.query(
       `UPDATE subscriptions
           SET plan_key=$1,provider='razorpay',provider_subscription_id=$2,status='created',updated_at=now()
-        WHERE parent_id=$3`,
+        WHERE parent_id=$3
+        RETURNING plan_key,status,provider_subscription_id`,
       [plan.key, subscription.id, req.auth.parent_id]
     );
-    await audit(req.auth.parent_id, null, "subscription_created", { planKey, providerId: subscription.id });
+    if (!updated.rowCount) throw httpError(500, "Subscription record is not available.", "billing_state_error");
+    await audit(req.auth.parent_id, null, "subscription_created", { planKey });
     res.json({
       keyId: process.env.RAZORPAY_KEY_ID,
       subscriptionId: subscription.id,
       plan: { key: plan.key, name: plan.name, displayPrice: plan.displayPrice }
     });
   } catch (err) { next(err); }
+  finally {
+    if (client) {
+      if (lockAcquired) {
+        try { await client.query("SELECT pg_advisory_unlock(hashtext($1))", [req.auth?.parent_id]); } catch {}
+      }
+      client.release();
+    }
+  }
 });
 
 app.get("/v1/events/stream", requireParent, async (req, res) => {
@@ -443,12 +714,14 @@ app.post("/v1/device/pair", pairingLimiter, async (req, res, next) => {
         "SELECT plan_key,trial_ends_at,current_period_end,status FROM subscriptions WHERE parent_id=$1",
         [parentId]
       );
-      const plan = effectivePlan(sub[0]);
+      const access = subscriptionAccess(sub[0]);
+      if (!access.entitled) throw httpError(402, "Your trial has ended. Choose a paid plan to connect a child device.", "subscription_required");
+      const plan = access.plan;
       const count = await client.query(
         "SELECT COUNT(*)::int AS count FROM devices WHERE parent_id=$1 AND revoked_at IS NULL",
         [parentId]
       );
-      if (count.rows[0].count >= plan.devices) throw httpError(403, "Your plan has reached its device limit.");
+      if (count.rows[0].count >= plan.devices) throw httpError(403, "Your plan has reached its device limit.", "device_limit_reached");
 
       const deviceId = crypto.randomUUID();
       const token = randomToken(32);
@@ -497,27 +770,33 @@ app.post("/v1/device/heartbeat", deviceLimiter, requireDevice, async (req, res, 
     const input = z.object({
       appVersion: z.string().trim().max(40).optional(),
       sharingEnabled: z.boolean().optional(),
-      contentSharingEnabled: z.boolean().optional()
+      contentSharingEnabled: z.boolean().optional(),
+      pendingCount: z.number().int().min(0).max(10000).optional(),
+      syncFailures: z.number().int().min(0).max(20).optional(),
+      syncError: z.string().trim().max(240).optional().nullable(),
+      syncDroppedCount: z.number().int().min(0).max(1000000000).optional()
     }).parse(req.body);
 
     const result = await pool.query(
-      `UPDATE devices SET last_seen_at=now(),app_version=COALESCE($1,app_version),
+      `UPDATE devices SET last_seen_at=now(),last_sync_at=now(),app_version=COALESCE($1,app_version),
           sharing_enabled=COALESCE($2,sharing_enabled),
-          content_sharing_enabled=COALESCE($3,content_sharing_enabled),updated_at=now()
-       WHERE id=$4
-       RETURNING id,name,sharing_enabled,content_sharing_enabled,last_seen_at`,
-      [input.appVersion || null, input.sharingEnabled, input.contentSharingEnabled, req.device.id]
+          content_sharing_enabled=COALESCE($3,content_sharing_enabled),
+          pending_count=COALESCE($4,pending_count),
+          sync_failures=COALESCE($5,sync_failures),
+          last_sync_error=NULLIF($6::text,''),
+          sync_dropped_count=COALESCE($7,sync_dropped_count),
+          updated_at=now()
+       WHERE id=$8 AND revoked_at IS NULL
+       RETURNING id,name,sharing_enabled,content_sharing_enabled,last_seen_at,last_sync_at,sync_failures,last_sync_error,pending_count,sync_dropped_count`,
+      [input.appVersion || null, input.sharingEnabled, input.contentSharingEnabled, input.pendingCount, input.syncFailures, input.syncError, input.syncDroppedCount, req.device.id]
     );
+    if (!result.rowCount) return sendError(res, req, 401, "Device is not authorized.", "device_not_authorized");
     res.json({ ok: true, device: result.rows[0], serverTime: new Date().toISOString() });
   } catch (err) { next(err); }
 });
 
-app.post("/v1/device/notifications", deviceLimiter, requireDevice, async (req, res, next) => {
+app.post("/v1/device/notifications", deviceLimiter, requireDevice, requireDeviceEntitlement, async (req, res, next) => {
   try {
-    if (!req.device.sharing_enabled) {
-      return res.status(409).json({ error: "Notification sharing is disabled for this device." });
-    }
-
     const parsed = z.object({
       notifications: z.array(z.object({
         clientNotificationId: z.string().min(1).max(180),
@@ -538,21 +817,42 @@ app.post("/v1/device/notifications", deviceLimiter, requireDevice, async (req, r
       })).min(1).max(50)
     }).parse(req.body);
 
-    for (const n of parsed.notifications) {
-      if (!req.device.content_sharing_enabled) {
-        n.title = null;
-        n.body = null;
-        n.contentState = "withheld";
-      } else if (!n.title && !n.body) {
-        n.contentState = "unavailable";
-      } else {
-        n.contentState = "available";
-      }
-    }
-
     const inserted = [];
+    let parentId = null;
+    let deviceName = null;
+    let rejection = null;
+
     await tx(async client => {
+      // Lock the current device row so a parent revoke/share-off cannot race a notification
+      // upload that started with an older requireDevice snapshot.
+      const { rows } = await client.query(
+        `SELECT id,parent_id,name,sharing_enabled,content_sharing_enabled,revoked_at
+           FROM devices WHERE id=$1 FOR UPDATE`,
+        [req.device.id]
+      );
+      const device = rows[0];
+      if (!device || device.revoked_at) {
+        rejection = { status: 401, message: "Device is not authorized.", code: "device_not_authorized" };
+        return;
+      }
+      if (!device.sharing_enabled) {
+        rejection = { status: 409, message: "Notification sharing is disabled for this device.", code: "sharing_disabled" };
+        return;
+      }
+
+      parentId = device.parent_id;
+      deviceName = device.name;
       for (const n of parsed.notifications) {
+        if (!device.content_sharing_enabled) {
+          n.title = null;
+          n.body = null;
+          n.contentState = "withheld";
+        } else if (!n.title && !n.body) {
+          n.contentState = "unavailable";
+        } else {
+          n.contentState = "available";
+        }
+
         const result = await client.query(
           `INSERT INTO notifications(
             device_id,parent_id,client_notification_id,notification_key_hash,package_name,app_name,
@@ -562,19 +862,26 @@ app.post("/v1/device/notifications", deviceLimiter, requireDevice, async (req, r
            ON CONFLICT(device_id,client_notification_id) DO NOTHING
            RETURNING id,package_name,app_name,notification_type,content_state,posted_at,received_at,read_at`,
           [
-            req.device.id, req.device.parent_id, n.clientNotificationId, n.notificationKeyHash,
-            n.packageName, n.appName, n.notificationType, n.category, n.channelId, n.groupKey,
+            device.id, device.parent_id, n.clientNotificationId, n.notificationKeyHash, n.packageName, n.appName,
+            n.notificationType, n.category, n.channelId, n.groupKey,
             n.isOngoing, n.isClearable, n.isGroupSummary, n.contentState,
             encryptText(n.title), encryptText(n.body), n.postedAt
           ]
         );
         if (result.rowCount) inserted.push(result.rows[0]);
       }
-      await client.query("UPDATE devices SET last_seen_at=now(),updated_at=now() WHERE id=$1", [req.device.id]);
+
+      await client.query(
+        `UPDATE devices SET last_seen_at=now(),last_sync_at=now(),sync_failures=0,last_sync_error=NULL,updated_at=now()
+         WHERE id=$1`,
+        [device.id]
+      );
     });
 
+    if (rejection) return sendError(res, req, rejection.status, rejection.message, rejection.code || "device_request_rejected");
+
     for (const n of inserted) {
-      broadcast(req.device.parent_id, "notification", {
+      broadcast(parentId, "notification", {
         id: n.id,
         appName: n.app_name,
         packageName: n.package_name,
@@ -582,13 +889,17 @@ app.post("/v1/device/notifications", deviceLimiter, requireDevice, async (req, r
         contentState: n.content_state,
         postedAt: n.posted_at,
         deviceId: req.device.id,
-        deviceName: req.device.name,
+        deviceName,
         title: null,
         body: null
       });
     }
 
-    res.status(201).json({ accepted: inserted.length, duplicateOrIgnored: parsed.notifications.length - inserted.length });
+    res.status(201).json({
+      accepted: inserted.length,
+      duplicateOrIgnored: parsed.notifications.length - inserted.length,
+      serverTime: new Date().toISOString()
+    });
   } catch (err) { next(err); }
 });
 
@@ -633,7 +944,12 @@ async function handleBillingWebhook(req, res) {
     if (!inserted.rowCount) return res.json({ ok: true, duplicate: true });
     if (providerSubscriptionId) {
       const status = normalizeSubscriptionStatus(eventType, entity?.status);
-      const plan = planFromProviderId(entity?.plan_id) || planFor("starter");
+      const providerPlan = planFromProviderId(entity?.plan_id);
+      const { rows: currentSub } = await pool.query(
+        "SELECT plan_key FROM subscriptions WHERE provider_subscription_id=$1",
+        [providerSubscriptionId]
+      );
+      const plan = providerPlan || planFor(currentSub[0]?.plan_key || "trial");
       const periodStart = entity?.current_start ? new Date(entity.current_start * 1000) : null;
       const periodEnd = entity?.current_end ? new Date(entity.current_end * 1000) : null;
       await pool.query(
@@ -645,7 +961,7 @@ async function handleBillingWebhook(req, res) {
       );
       const { rows: affected } = await pool.query("SELECT parent_id FROM subscriptions WHERE provider_subscription_id=$1", [providerSubscriptionId]);
       if (affected[0]) {
-        await audit(affected[0].parent_id, null, "billing_webhook_applied", { eventType, status, providerSubscriptionId });
+        await audit(affected[0].parent_id, null, "billing_webhook_applied", { eventType, status }, "system");
       }
     }
     res.json({ ok: true });
@@ -654,49 +970,207 @@ async function handleBillingWebhook(req, res) {
   }
 }
 
-async function getNotifications(parentId, { search = "", unreadOnly = false, limit = 50, offset = 0 } = {}) {
+function serializeDevice(row) {
+  const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
+  const online = lastSeen > 0 && Date.now() - lastSeen < DEVICE_ONLINE_WINDOW_MS && !row.revoked_at;
+  const pending = Number(row.pending_count || 0);
+  const failures = Number(row.sync_failures || 0);
+  const syncStatus = failures > 0 ? "error" : pending > 0 ? "pending" : online ? "healthy" : "stale";
+  return {
+    id: row.id,
+    name: row.name,
+    platform: row.platform,
+    app_version: row.app_version,
+    sharing_enabled: row.sharing_enabled,
+    content_sharing_enabled: row.content_sharing_enabled,
+    status: row.revoked_at ? "revoked" : online ? "online" : "offline",
+    sync_status: syncStatus,
+    last_seen_at: row.last_seen_at,
+    last_sync_at: row.last_sync_at,
+    sync_failures: failures,
+    last_sync_error: row.last_sync_error,
+    pending_count: pending,
+    sync_dropped_count: String(row.sync_dropped_count || 0),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    revoked_at: row.revoked_at
+  };
+}
+
+function parseBigIntId(value) {
+  const raw = String(value ?? "");
+  try {
+    const numeric = BigInt(raw);
+    if (!/^\d{1,19}$/.test(raw) || numeric <= 0n || numeric > 9223372036854775807n) throw new Error();
+  } catch {
+    throw httpError(400, "Invalid notification id.", "invalid_notification_id");
+  }
+  return raw;
+}
+
+function parseNotificationIds(body) {
+  const schema = z.object({
+    ids: z.array(z.union([
+      z.string().regex(/^\d{1,19}$/),
+      z.number().int().safe().positive()
+    ])).min(1).max(100)
+  });
+  const ids = schema.parse(body).ids.map(String);
+  for (const id of ids) parseBigIntId(id);
+  return [...new Set(ids)];
+}
+
+function parseNotificationListQuery(query) {
+  const notificationTypes = ["message","email","call","media","alarm","reminder","event","system","progress","service","other"];
+  const input = z.object({
+    search: z.string().trim().max(120).optional(),
+    unread: z.enum(["0","1"]).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    offset: z.coerce.number().int().min(0).max(5000).optional(),
+    cursor: z.string().max(512).optional(),
+    deviceId: z.string().uuid().optional(),
+    type: z.enum(notificationTypes).optional(),
+    from: z.string().datetime({ offset: true }).optional(),
+    to: z.string().datetime({ offset: true }).optional()
+  }).parse(query);
+  if (input.from && input.to && new Date(input.from) >= new Date(input.to)) {
+    throw httpError(400, "The 'from' time must be earlier than the 'to' time.", "invalid_notification_range");
+  }
+  let cursor = null;
+  if (input.cursor) {
+    try { cursor = decodeNotificationCursor(input.cursor); }
+    catch { throw httpError(400, "Invalid pagination cursor.", "invalid_cursor"); }
+  }
+  if (cursor && input.offset !== undefined) {
+    throw httpError(400, "Use either cursor or offset pagination, not both.", "mixed_pagination");
+  }
+  return {
+    search: input.search || "",
+    unreadOnly: input.unread === "1",
+    limit: input.limit,
+    offset: input.offset,
+    cursor,
+    cursorRaw: input.cursor || null,
+    deviceId: input.deviceId || null,
+    type: input.type || null,
+    from: input.from || null,
+    to: input.to || null
+  };
+}
+
+function serializeNotification(row) {
+  return {
+    id: String(row.id),
+    package_name: row.package_name,
+    app_name: row.app_name,
+    notification_type: row.notification_type,
+    category: row.category,
+    channel_id: row.channel_id,
+    group_key: row.group_key,
+    is_ongoing: row.is_ongoing,
+    is_clearable: row.is_clearable,
+    is_group_summary: row.is_group_summary,
+    content_state: row.content_state,
+    title: decryptText(row.title_enc),
+    body: decryptText(row.body_enc),
+    posted_at: row.posted_at,
+    received_at: row.received_at,
+    read_at: row.read_at,
+    device_id: row.device_id,
+    device_name: row.device_name
+  };
+}
+
+async function getNotifications(parentId, {
+  search = "",
+  unreadOnly = false,
+  limit = 50,
+  offset,
+  cursor = null,
+  deviceId = null,
+  type = null,
+  from = null,
+  to = null
+} = {}) {
   const values = [parentId];
   const where = ["n.parent_id=$1", "n.deleted_at IS NULL"];
   if (unreadOnly) where.push("n.read_at IS NULL");
-  if (search) {
-    values.push(`%${search.replace(/[%_]/g, "\\$&")}%`);
-    where.push(`(n.app_name ILIKE $${values.length} ESCAPE '\\' OR n.package_name ILIKE $${values.length} ESCAPE '\\')`);
+  if (deviceId) {
+    values.push(deviceId);
+    where.push(`n.device_id=$${values.length}`);
   }
+  if (type) {
+    values.push(type);
+    where.push(`n.notification_type=$${values.length}`);
+  }
+  if (from) {
+    values.push(new Date(from));
+    where.push(`n.received_at >= $${values.length}`);
+  }
+  if (to) {
+    values.push(new Date(to));
+    where.push(`n.received_at < $${values.length}`);
+  }
+  if (search) {
+    const escaped = search.replace(/[%_\\]/g, "\\$&");
+    values.push(`%${escaped}%`);
+    const idx = values.length;
+    where.push(`(
+      n.app_name ILIKE $${idx} ESCAPE '\\'
+      OR n.package_name ILIKE $${idx} ESCAPE '\\'
+      OR d.name ILIKE $${idx} ESCAPE '\\'
+      OR n.notification_type ILIKE $${idx} ESCAPE '\\'
+      OR COALESCE(n.category,'') ILIKE $${idx} ESCAPE '\\'
+    )`);
+  }
+  if (cursor) {
+    values.push(cursor.receivedAt);
+    const timeIndex = values.length;
+    values.push(cursor.id);
+    const idIndex = values.length;
+    where.push(`(n.received_at < $${timeIndex}::timestamptz OR (n.received_at = $${timeIndex}::timestamptz AND n.id < $${idIndex}::bigint))`);
+  }
+
   const limitIndex = values.length + 1;
-  const offsetIndex = values.length + 2;
-  values.push(limit, offset);
+  values.push(limit + 1);
+  let offsetClause = "";
+  if (offset !== undefined && offset !== null) {
+    const offsetIndex = values.length + 1;
+    values.push(offset);
+    offsetClause = ` OFFSET $${offsetIndex}`;
+  }
 
   const { rows } = await pool.query(
-    `SELECT n.id,n.package_name,n.app_name,n.notification_type,n.category,n.channel_id,n.group_key,n.is_ongoing,n.is_clearable,n.is_group_summary,n.content_state,n.title_enc,n.body_enc,n.posted_at,n.received_at,n.read_at,d.id AS device_id,d.name AS device_name
-       FROM notifications n JOIN devices d ON d.id=n.device_id
+    `SELECT n.id,n.package_name,n.app_name,n.notification_type,n.category,n.channel_id,n.group_key,
+            n.is_ongoing,n.is_clearable,n.is_group_summary,n.content_state,n.title_enc,n.body_enc,
+            n.posted_at,n.received_at,n.received_at::text AS received_at_cursor,n.read_at,
+            d.id AS device_id,d.name AS device_name
+       FROM notifications n
+       JOIN devices d ON d.id=n.device_id
       WHERE ${where.join(" AND ")}
-      ORDER BY n.received_at DESC
-      LIMIT $${limitIndex} OFFSET $${offsetIndex}`,
+      ORDER BY n.received_at DESC,n.id DESC
+      LIMIT $${limitIndex}${offsetClause}`,
     values
   );
 
+  const hasMore = rows.length > limit;
+  if (hasMore) rows.pop();
+  const items = rows.map(serializeNotification);
+  const nextCursor = hasMore && rows.length ? notificationCursorFromRow(rows[rows.length - 1]) : null;
+
   return {
-    items: rows.map(row => ({
-      id: row.id,
-      package_name: row.package_name,
-      app_name: row.app_name,
-      notification_type: row.notification_type,
-      category: row.category,
-      channel_id: row.channel_id,
-      group_key: row.group_key,
-      is_ongoing: row.is_ongoing,
-      is_clearable: row.is_clearable,
-      is_group_summary: row.is_group_summary,
-      content_state: row.content_state,
-      title: decryptText(row.title_enc),
-      body: decryptText(row.body_enc),
-      posted_at: row.posted_at,
-      received_at: row.received_at,
-      read_at: row.read_at,
-      device_id: row.device_id,
-      device_name: row.device_name
-    })),
-    hasMore: rows.length === limit
+    items,
+    pageSize: items.length,
+    hasMore,
+    nextCursor,
+    pagination: {
+      type: cursor || offset === undefined ? "cursor" : "offset",
+      cursor: nextCursor,
+      offset: offset === undefined ? null : offset,
+      maxPageSize: 100,
+      maxOffset: 5000
+    },
+    searchScope: ["app_name", "package_name", "device_name", "notification_type", "category"]
   };
 }
 
@@ -706,28 +1180,24 @@ async function getSubscription(parentId) {
        FROM subscriptions WHERE parent_id=$1`, [parentId]
   );
   const sub = rows[0];
-  if (!sub) return { plan: PLANS.trial, status: "trialing" };
+  const access = subscriptionAccess(sub);
   return {
-    plan: effectivePlan(sub),
-    requestedPlan: planFor(sub.plan_key),
-    status: sub.status,
-    trialEndsAt: sub.trial_ends_at,
-    currentPeriodStart: sub.current_period_start,
-    currentPeriodEnd: sub.current_period_end,
-    providerSubscriptionId: sub.provider_subscription_id
+    plan: access.plan,
+    requestedPlan: planFor(sub?.plan_key || "trial"),
+    status: sub?.status || "trialing",
+    access: access.state,
+    entitled: access.entitled,
+    trialEndsAt: sub?.trial_ends_at || null,
+    currentPeriodStart: sub?.current_period_start || null,
+    currentPeriodEnd: sub?.current_period_end || null,
+    providerSubscriptionId: sub?.provider_subscription_id || null,
+    limits: access.entitled ? { devices: access.plan.devices, retentionDays: access.plan.retention } : { devices: 0, retentionDays: 0 }
   };
 }
 
 async function getDeviceLimit(parentId) {
   const subscription = await getSubscription(parentId);
-  return subscription.plan.devices;
-}
-
-function effectivePlan(sub) {
-  if (!sub) return PLANS.trial;
-  if (sub.plan_key !== "trial" && ["active","authenticated"].includes(sub.status)) return planFor(sub.plan_key);
-  if (sub.trial_ends_at && new Date(sub.trial_ends_at) > new Date()) return PLANS.trial;
-  return PLANS.trial;
+  return subscription.entitled ? subscription.plan.devices : 0;
 }
 
 function normalizeSubscriptionStatus(eventType, providerStatus) {
@@ -744,17 +1214,22 @@ function makePairingCode() {
   return code;
 }
 
-function httpError(status, message) {
+function httpError(status, message, code = "request_error") {
   const err = new Error(message);
   err.status = status;
+  err.code = code;
   return err;
 }
 
-async function audit(parentId, deviceId, action, metadata) {
+function sendError(res, req, status, message, code = "request_error", extra = {}) {
+  return res.status(status).json({ error: message, code, requestId: req.requestId, ...extra });
+}
+
+async function audit(parentId, deviceId, action, metadata, actorType = deviceId ? "device" : "parent") {
   await pool.query(
     `INSERT INTO audit_log(parent_id,device_id,actor_type,action,metadata)
-     VALUES($1,$2,'system',$3,$4)`,
-    [parentId, deviceId, action, JSON.stringify(metadata || {})]
+     VALUES($1,$2,$3,$4,$5)`,
+    [parentId, deviceId, actorType, action, JSON.stringify(metadata || {})]
   );
 }
 
@@ -772,7 +1247,7 @@ async function requireParent(req, res, next) {
   try {
     const token = req.cookies?.[COOKIE_NAME] || req.header("x-session-token");
     const session = await getSession(pool, token);
-    if (!session) return res.status(401).json({ error: "Authentication required." });
+    if (!session) return sendError(res, req, 401, "Authentication required.", "authentication_required");
     req.auth = session;
     next();
   } catch (err) { next(err); }
@@ -781,32 +1256,57 @@ async function requireParent(req, res, next) {
 function requireCsrf(req, res, next) {
   const cookieToken = req.cookies?.[CSRF_COOKIE];
   const headerToken = req.header("x-csrf-token");
-  if (!cookieToken || !headerToken || cookieToken !== headerToken) return res.status(403).json({ error: "CSRF validation failed." });
+  if (!cookieToken || !headerToken || cookieToken !== headerToken) return sendError(res, req, 403, "CSRF validation failed.", "csrf_failed");
   next();
 }
 
 async function requireDevice(req, res, next) {
   try {
     const header = req.header("authorization") || "";
-    if (!header.startsWith("Bearer ")) return res.status(401).json({ error: "Device authentication required." });
+    if (!header.startsWith("Bearer ")) return sendError(res, req, 401, "Device authentication required.", "device_authentication_required");
     const tokenHash = sha256(header.slice(7));
     const { rows } = await pool.query(
       `SELECT id,parent_id,name,sharing_enabled,content_sharing_enabled,revoked_at
          FROM devices WHERE device_token_hash=$1`, [tokenHash]
     );
-    if (!rows[0] || rows[0].revoked_at) return res.status(401).json({ error: "Device is not authorized." });
+    if (!rows[0] || rows[0].revoked_at) return sendError(res, req, 401, "Device is not authorized.", "device_not_authorized");
     req.device = rows[0];
     next();
   } catch (err) { next(err); }
 }
 
-app.use((err, _req, res, _next) => {
-  if (err instanceof z.ZodError) return res.status(400).json({ error: "Invalid request.", issues: err.issues });
-  console.error(err);
-  res.status(err.status || 500).json({ error: process.env.NODE_ENV === "production" ? "Something went wrong." : err.message });
+async function requireDeviceEntitlement(req, res, next) {
+  try {
+    const subscription = await getSubscription(req.device.parent_id);
+    if (!subscription.entitled) {
+      return res.status(402).json({
+        error: "The parent subscription is not active. Notification synchronization is paused.",
+        code: "subscription_required",
+        requestId: req.requestId
+      });
+    }
+    req.deviceEntitlement = subscription;
+    next();
+  } catch (err) { next(err); }
+}
+
+app.use((err, req, res, _next) => {
+  const requestId = req.requestId || crypto.randomUUID();
+  if (err instanceof z.ZodError) {
+    logger.warn({ requestId, issues: err.issues.map(issue => ({ path: issue.path, code: issue.code })) }, "request_validation_failed");
+    return sendError(res, req, 400, "Invalid request.", "invalid_request", {
+      issues: err.issues.map(issue => ({ path: issue.path, code: issue.code }))
+    });
+  }
+  logger.error({ err, requestId, statusCode: err.status || 500 }, "request_failed");
+  res.status(err.status || 500).json({
+    error: process.env.NODE_ENV === "production" ? (err.status ? err.message : "Something went wrong.") : err.message,
+    code: err.code || "internal_error",
+    requestId
+  });
 });
 
-app.listen(port, () => console.log(`KidRaksha API listening on ${port}`));
+app.listen(port, () => logger.info({ port, apiVersion: API_VERSION, contractVersion: API_CONTRACT_VERSION }, "api_listening"));
 
 setInterval(async () => {
   try {
@@ -815,6 +1315,6 @@ setInterval(async () => {
     await pool.query("DELETE FROM pairing_codes WHERE used_at IS NOT NULL OR expires_at<now()-interval '1 day'");
     await pool.query("UPDATE devices SET sharing_enabled=false WHERE revoked_at IS NOT NULL");
   } catch (err) {
-    console.error("maintenance", err);
+    logger.error({ err }, "maintenance_failed");
   }
 }, 60 * 60 * 1000).unref();

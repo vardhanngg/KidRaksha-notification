@@ -18,11 +18,20 @@ class ApiClient(private val prefs: Prefs, private val secure: SecureStore) {
         return PairResult(json.getString("deviceId"), json.getString("deviceToken"))
     }
 
-    fun heartbeat() {
+    fun heartbeat(
+        pendingCount: Int = 0,
+        syncFailures: Int = 0,
+        syncError: String? = null,
+        syncDroppedCount: Long = 0L
+    ) {
         authRequest("POST", "/device/heartbeat", JSONObject()
             .put("appVersion", android.os.Build.VERSION.RELEASE)
             .put("sharingEnabled", prefs.sharingEnabled)
-            .put("contentSharingEnabled", prefs.contentSharingEnabled))
+            .put("contentSharingEnabled", prefs.contentSharingEnabled)
+            .put("pendingCount", pendingCount.coerceIn(0, 10_000))
+            .put("syncFailures", syncFailures.coerceIn(0, 20))
+            .put("syncDroppedCount", syncDroppedCount.coerceAtLeast(0L))
+            .putOpt("syncError", syncError?.take(240)))
     }
 
     fun upload(items: List<QueuedNotification>): Int {

@@ -43,25 +43,34 @@ Complete.
 
 The normalized notification contract is now the foundation for reliable synchronization and the parent inbox.
 
-## Stage 4 — Reliable synchronization
+## Stage 4 — Reliable synchronization ✅
+Complete.
 
-- durable offline queue hardening
+- durable encrypted offline queue hardening
 - retry/backoff policy
-- sync acknowledgement model
-- stale queue recovery
-- network/battery behavior validation
-- device clock handling
+- at-least-once acknowledgement model with server idempotency
+- stale queue recovery after process/network failures
+- connected-network WorkManager scheduling
+- bounded queue overflow reporting
+- parent-visible sync health
+- server-side race protection for device sharing/revocation state
 
-The current queue, heartbeat and periodic sync are already the baseline.
+The current WorkManager, heartbeat and notification upload paths form the reliability baseline.
 
-## Stage 5 — SaaS API completion
+## Stage 5 — SaaS API completion ✅
+Complete.
 
-- mature pagination/search
-- device lifecycle APIs
-- notification retention/deletion semantics
-- audit/event model
-- plan entitlement enforcement
-- API observability
+- opaque keyset notification pagination with bounded legacy offset mode
+- explicit notification search/filter scope
+- notification detail/read/unread/bulk/delete lifecycle APIs
+- REST-style device detail/rename/revoke lifecycle endpoints
+- tenant-scoped audit pagination and event fan-out
+- centralized subscription entitlement policy and expired-trial enforcement
+- per-parent billing creation locking and safer webhook plan handling
+- structured request logging, request IDs, error codes and database health latency
+- current dependency baseline for validation/rate limiting/logging
+
+The API contract is documented in `docs/API.md` and `docs/STAGE5_API_COMPLETION.md`.
 
 ## Stage 6 — Parent product UI completion
 

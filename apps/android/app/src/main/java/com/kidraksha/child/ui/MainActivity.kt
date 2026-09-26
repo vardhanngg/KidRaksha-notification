@@ -20,7 +20,7 @@ import com.kidraksha.child.data.SecureStore
 import com.kidraksha.child.network.ApiClient
 import com.kidraksha.child.service.NotificationCaptureService
 import com.kidraksha.child.service.StatusNotifier
-import com.kidraksha.child.sync.ScheduleSync
+import com.kidraksha.child.sync.SyncScheduler
 import com.kidraksha.child.sync.SyncManager
 
 class MainActivity : Activity() {
@@ -193,6 +193,9 @@ class MainActivity : Activity() {
             root.addView(space(8))
             root.addView(secondaryButton("Notification Access settings") { openNotificationAccess() })
             root.addView(space(8))
+            val pending = PendingStore(this).count()
+            val sync = if (prefs.syncLastSuccessAt > 0L) "Last successful sync: ${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(prefs.syncLastSuccessAt))}" else "No successful sync yet"
+            root.addView(statusCard("Sync", if (pending > 0) "$pending notification${if (pending == 1) "" else "s"} waiting · $sync" else sync, prefs.syncFailureCount == 0))
             root.addView(secondaryButton("Sync now") { SyncManager.run(this); Toast.makeText(this,"Sync requested",Toast.LENGTH_SHORT).show() })
             root.addView(space(8))
             root.addView(secondaryButton("Privacy and data") { showPrivacy() })
@@ -291,7 +294,7 @@ class MainActivity : Activity() {
         prefs.contentSharingEnabled=false
         PendingStore(this).clear()
         StatusNotifier.refresh(this)
-        ScheduleSync.schedule(this)
+        SyncScheduler.cancelAll(this)
         SyncManager.run(this)
         render()
     }
@@ -330,7 +333,7 @@ class MainActivity : Activity() {
                             Toast.makeText(this,"Could not reach the parent service. Try again when online.",Toast.LENGTH_LONG).show()
                         } else {
                             secure.clear(); PendingStore(this).clear(); prefs.paired=false; prefs.sharingEnabled=false; prefs.contentSharingEnabled=false; prefs.pendingEnableAfterAccess=false; prefs.deviceId=null
-                            ScheduleSync.cancel(this); StatusNotifier.stop(this); render()
+                            SyncScheduler.cancelAll(this); StatusNotifier.stop(this); render()
                         }
                     }
                 }.start()

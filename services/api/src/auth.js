@@ -2,8 +2,8 @@
 import crypto from "node:crypto";
 import { randomToken, sha256, hashPassword, verifyPassword } from "./crypto.js";
 
-const COOKIE_NAME = "lw_session";
-const CSRF_COOKIE = "lw_csrf";
+const COOKIE_NAME = "kidraksha_session";
+const CSRF_COOKIE = "kidraksha_csrf";
 const SESSION_DAYS = 14;
 
 export function cookieOptions() {
