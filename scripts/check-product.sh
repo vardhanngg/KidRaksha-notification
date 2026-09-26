@@ -62,7 +62,7 @@ if ! grep -q 'WHERE id=\$8 AND revoked_at IS NULL' "$server"; then
   echo "Heartbeat can update revoked devices." >&2
   exit 1
 fi
-echo "KidRaksha product structure check: PASS"
+echo "KidSuraksha product structure check: PASS"
 
 # Stage 5 API contract checks
 for f in \
