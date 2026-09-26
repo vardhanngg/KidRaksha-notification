@@ -4,7 +4,7 @@
 Make child-to-cloud notification delivery durable across offline periods, process death, reboot, network failures, duplicate HTTP delivery, and temporary backend failures.
 
 ## Android scheduling
-KidRaksha uses `androidx.work:work-runtime-ktx:2.12.0` with `CoroutineWorker`. WorkManager is the Android-recommended API for persistent background work and is designed to reschedule work across app restarts and reboots. A 15-minute periodic worker provides reconciliation; notification capture also enqueues unique one-time work for prompt delivery when a connected network is available.
+KidSuraksha uses `androidx.work:work-runtime-ktx:2.12.0` with `CoroutineWorker`. WorkManager is the Android-recommended API for persistent background work and is designed to reschedule work across app restarts and reboots. A 15-minute periodic worker provides reconciliation; notification capture also enqueues unique one-time work for prompt delivery when a connected network is available.
 
 Each work request requires `NetworkType.CONNECTED` and uses exponential backoff starting at 30 seconds. Unique work with `KEEP` prevents notification bursts from creating an unbounded number of sync jobs.
 
