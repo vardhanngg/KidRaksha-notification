@@ -4,7 +4,7 @@ Run from the repository root.
 
 ```bash
 git checkout -b stage-7-realtime
-unzip -o KidRaksha-notification-stage7-root.zip
+unzip -o KidSuraksha-notification-stage7-root.zip
 
 git diff --check
 bash scripts/check-product.sh
