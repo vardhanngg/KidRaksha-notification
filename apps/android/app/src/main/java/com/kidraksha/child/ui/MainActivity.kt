@@ -11,6 +11,8 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import android.widget.*
 import com.kidraksha.child.BuildConfig
@@ -84,11 +86,9 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(24), dp(22), dp(24), dp(30))
             setBackgroundColor(getColor(R.color.kd_bg))
-            setOnApplyWindowInsetsListener { view, insets ->
-                val bars = if (Build.VERSION.SDK_INT >= 30) insets.getInsets(android.view.WindowInsets.Type.systemBars()) else null
-                val top = bars?.top ?: insets.systemWindowInsetTop
-                val bottom = bars?.bottom ?: insets.systemWindowInsetBottom
-                view.setPadding(dp(24), dp(22) + top, dp(24), dp(30) + bottom)
+            ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
+                val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+                view.setPadding(dp(24), dp(22) + bars.top, dp(24), dp(30) + bars.bottom)
                 insets
             }
         }
