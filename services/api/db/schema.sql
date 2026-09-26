@@ -54,8 +54,17 @@ CREATE TABLE IF NOT EXISTS notifications (
   device_id UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
   parent_id UUID NOT NULL REFERENCES parents(id) ON DELETE CASCADE,
   client_notification_id TEXT NOT NULL,
+  notification_key_hash TEXT,
   package_name TEXT NOT NULL,
   app_name TEXT NOT NULL,
+  notification_type TEXT NOT NULL DEFAULT 'other',
+  category TEXT,
+  channel_id TEXT,
+  group_key TEXT,
+  is_ongoing BOOLEAN NOT NULL DEFAULT FALSE,
+  is_clearable BOOLEAN NOT NULL DEFAULT FALSE,
+  is_group_summary BOOLEAN NOT NULL DEFAULT FALSE,
+  content_state TEXT NOT NULL DEFAULT 'unavailable',
   title_enc TEXT,
   body_enc TEXT,
   posted_at TIMESTAMPTZ NOT NULL,
@@ -67,6 +76,9 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_parent_received ON notifications(parent_id, received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notifications_parent_unread ON notifications(parent_id, read_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_notifications_package ON notifications(parent_id, package_name);
+CREATE INDEX IF NOT EXISTS idx_notifications_parent_type ON notifications(parent_id, notification_type, received_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_parent_device ON notifications(parent_id, device_id, received_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_key_hash ON notifications(device_id, notification_key_hash) WHERE notification_key_hash IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY,

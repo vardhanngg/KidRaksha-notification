@@ -1,4 +1,3 @@
-
 package com.kidraksha.child.network
 
 import com.kidraksha.child.data.QueuedNotification
@@ -14,22 +13,16 @@ class ApiClient(private val prefs: Prefs, private val secure: SecureStore) {
     class ApiException(val code: Int, message: String): Exception(message)
 
     fun pair(code: String, name: String, appVersion: String): PairResult {
-        val body = JSONObject()
-            .put("code", code)
-            .put("name", name)
-            .put("appVersion", appVersion)
+        val body = JSONObject().put("code", code).put("name", name).put("appVersion", appVersion)
         val json = request("POST", "/device/pair", body)
         return PairResult(json.getString("deviceId"), json.getString("deviceToken"))
     }
 
     fun heartbeat() {
-        authRequest(
-            "POST", "/device/heartbeat",
-            JSONObject()
-                .put("appVersion", android.os.Build.VERSION.RELEASE)
-                .put("sharingEnabled", prefs.sharingEnabled)
-                .put("contentSharingEnabled", prefs.contentSharingEnabled)
-        )
+        authRequest("POST", "/device/heartbeat", JSONObject()
+            .put("appVersion", android.os.Build.VERSION.RELEASE)
+            .put("sharingEnabled", prefs.sharingEnabled)
+            .put("contentSharingEnabled", prefs.contentSharingEnabled))
     }
 
     fun upload(items: List<QueuedNotification>): Int {
@@ -37,8 +30,17 @@ class ApiClient(private val prefs: Prefs, private val secure: SecureStore) {
         items.forEach { n ->
             list.put(JSONObject()
                 .put("clientNotificationId", n.clientNotificationId)
+                .put("notificationKeyHash", n.notificationKeyHash)
                 .put("packageName", n.packageName)
                 .put("appName", n.appName)
+                .put("notificationType", n.notificationType)
+                .putOpt("category", n.category)
+                .putOpt("channelId", n.channelId)
+                .putOpt("groupKey", n.groupKey)
+                .put("isOngoing", n.isOngoing)
+                .put("isClearable", n.isClearable)
+                .put("isGroupSummary", n.isGroupSummary)
+                .put("contentState", n.contentState)
                 .putOpt("title", n.title)
                 .putOpt("body", n.body)
                 .put("postedAt", java.time.Instant.ofEpochMilli(n.postedAt).toString()))
@@ -47,9 +49,7 @@ class ApiClient(private val prefs: Prefs, private val secure: SecureStore) {
         return result.optInt("accepted", 0)
     }
 
-    fun unpair() {
-        runCatching { authRequest("POST", "/device/unpair", JSONObject()) }
-    }
+    fun unpair() = runCatching { authRequest("POST", "/device/unpair", JSONObject()) }
 
     private fun authRequest(method: String, path: String, body: JSONObject): JSONObject {
         val token = secure.getToken() ?: throw ApiException(401, "No device token")
@@ -69,6 +69,7 @@ class ApiClient(private val prefs: Prefs, private val secure: SecureStore) {
             setRequestProperty("Accept", "application/json")
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("X-KidRaksha-Client", "android")
+            setRequestProperty("X-KidRaksha-Schema", "3")
             token?.let { setRequestProperty("Authorization", "Bearer $it") }
         }
         val raw = body.toString().toByteArray(Charsets.UTF_8)
