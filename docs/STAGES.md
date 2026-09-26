@@ -72,14 +72,21 @@ Complete.
 
 The API contract is documented in `docs/API.md` and `docs/STAGE5_API_COMPLETION.md`.
 
-## Stage 6 — Parent product UI completion
+## Stage 6 — Parent product UI completion ✅
+Complete.
 
-- production dashboard polish
-- notification inbox UX
-- device management UX
-- onboarding and empty states
-- responsive/mobile web layout
-- accessibility and error states
+- production dashboard and family workspace shell
+- notification inbox with cursor pagination, filters, bulk actions and detail view
+- device management health/status UX, rename and revoke dialogs
+- billing/pricing product UI and checkout states
+- settings, privacy controls, export and deletion UX
+- onboarding flow with pairing-code feedback and completion state
+- responsive/mobile web layout and navigation
+- keyboard focus, skip link, reduced-motion support and accessible dialogs
+- route-level loading and error states
+
+The web UI now consumes the Stage 5 API as a customer-facing SaaS rather than a prototype inspector.
+
 
 ## Stage 7 — Realtime experience
 

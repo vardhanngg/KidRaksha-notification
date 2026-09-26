@@ -1,49 +1,15 @@
 "use client";
+
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Brand from "./Brand";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
+import { Icon } from "./ui/UI";
 
 export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
-  const [name,setName]=useState("");
-  const [email,setEmail]=useState("");
-  const [password,setPassword]=useState("");
-  const [accepted,setAccepted]=useState(false);
-  const [error,setError]=useState("");
-  const [busy,setBusy]=useState(false);
-
-  async function submit(e:FormEvent){
-    e.preventDefault(); setBusy(true); setError("");
-    try{
-      await api(mode==="login"?"/auth/login":"/auth/signup",{
-        method:"POST",
-        body:JSON.stringify(mode==="login"?{email,password}:{email,password,displayName:name,acceptedPolicies:accepted})
-      });
-      router.replace(mode==="signup"?"/onboarding":"/dashboard");
-      router.refresh();
-    }catch(err:any){setError(err.message||"Something went wrong.");}
-    finally{setBusy(false);}
-  }
-
-  return <main className="authPage">
-    <div className="authCard">
-      <Brand/>
-      <div className="authKicker">{mode==="login"?"Parent console":"Start your family workspace"}</div>
-      <h1>{mode==="login"?"Welcome back":"Create your parent account"}</h1>
-      <p className="muted">{mode==="login"?"Open your KidRaksha dashboard.":"Start your 7-day trial and connect your first child device."}</p>
-      {error && <div className="error" style={{marginTop:16}}>{error}</div>}
-      <form onSubmit={submit}>
-        {mode==="signup" && <div className="field"><label>Your name</label><input className="input" value={name} onChange={e=>setName(e.target.value)} autoComplete="name" required/></div>}
-        <div className="field"><label>Email</label><input className="input" type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" required/></div>
-        <div className="field"><label>Password</label><input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==="login"?"current-password":"new-password"} minLength={10} required/><div className="small muted">Use at least 10 characters.</div></div>
-        {mode==="signup" && <label className="consentRow"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)} required/><span>I agree to the <Link href="/terms" target="_blank">Terms</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>.</span></label>}
-        <button className="btn accent" disabled={busy || (mode==="signup" && !accepted)} style={{width:"100%",marginTop:20}}>{busy?"Please wait…":mode==="login"?"Log in":"Create account"}</button>
-      </form>
-      <p className="small muted" style={{marginTop:18}}>
-        {mode==="login"?<>New here? <Link href="/signup" className="accentLink">Create an account</Link></>:<>Already have an account? <Link href="/login" className="accentLink">Log in</Link></>}
-      </p>
-    </div>
-  </main>;
+  const [name,setName]=useState(""); const [email,setEmail]=useState(""); const [password,setPassword]=useState(""); const [accepted,setAccepted]=useState(false); const [error,setError]=useState(""); const [requestId,setRequestId]=useState(""); const [busy,setBusy]=useState(false);
+  async function submit(e:FormEvent){e.preventDefault();setBusy(true);setError("");setRequestId("");try{await api(mode==="login"?"/auth/login":"/auth/signup",{method:"POST",body:JSON.stringify(mode==="login"?{email,password}:{email,password,displayName:name,acceptedPolicies:accepted})});router.replace(mode==="signup"?"/onboarding":"/dashboard");router.refresh()}catch(err:any){setError(err.message||"Something went wrong.");if(err instanceof ApiError&&err.requestId)setRequestId(err.requestId)}finally{setBusy(false)}}
+  return <main className="authPage"><div className="authShell"><section className="authIntro"><Link href="/" aria-label="KidRaksha home"><Brand/></Link><div className="authIntroCopy"><div className="eyebrow">{mode==="login"?"Parent workspace":"Start your family workspace"}</div><h1>{mode==="login"?"Welcome back.":"A clearer way to stay in the loop."}</h1><p>{mode==="login"?"Open your secure KidRaksha dashboard and review the notifications your family has chosen to share.":"Set up your parent account, pair an Android phone, and keep notification sharing visible and controlled."}</p></div><div className="authBenefits"><div><Icon name="shield"/><span><b>Built around consent</b><small>The child device remains in control of Notification Access and sharing.</small></span></div><div><Icon name="bell"/><span><b>Focused product</b><small>Only the notification-sharing workflow belongs in this workspace.</small></span></div><div><Icon name="device"/><span><b>Secure pairing</b><small>Short-lived pairing codes connect a device to your family account.</small></span></div></div></section><section className="authCard"><div className="mobileAuthBrand"><Brand/></div><div className="authKicker">{mode==="login"?"Parent console":"Create account"}</div><h2>{mode==="login"?"Log in to KidRaksha":"Create your parent account"}</h2><p className="muted">{mode==="login"?"Use the email and password associated with your family workspace.":"Your 7-day trial starts when your account is created."}</p>{error&&<div className="error" style={{marginTop:16}}>{error}{requestId&&<div style={{marginTop:4,fontSize:10,opacity:.8}}>Reference: {requestId}</div>}</div>}<form onSubmit={submit}>{mode==="signup"&&<div className="field"><label htmlFor="name">Your name</label><input id="name" className="input" value={name} onChange={e=>setName(e.target.value)} autoComplete="name" required maxLength={80}/></div>}<div className="field"><label htmlFor="email">Email</label><input id="email" className="input" type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" required maxLength={200}/></div><div className="field"><label htmlFor="password">Password</label><input id="password" className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==="login"?"current-password":"new-password"} minLength={10} maxLength={128} required/><div className="helper">At least 10 characters.</div></div>{mode==="signup"&&<label className="consentRow"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)} required/><span>I agree to the <Link href="/terms" target="_blank" rel="noreferrer">Terms</Link> and <Link href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</Link>.</span></label>}<button className="btn accent" disabled={busy||(mode==="signup"&&!accepted)} style={{width:"100%",marginTop:20}}>{busy?<><span className="pulse" style={{width:8,height:8,margin:0,animation:"none",boxShadow:"none"}}/> Please wait…</>:mode==="login"?<><Icon name="arrowRight" size={16}/> Log in</>:<><Icon name="arrowRight" size={16}/> Create account</>}</button></form><div className="authDivider"><span>or</span></div><p className="small muted" style={{margin:0,textAlign:"center"}}>{mode==="login"?<>New to KidRaksha? <Link href="/signup" className="accentLink">Create an account</Link></>:<>Already have an account? <Link href="/login" className="accentLink">Log in</Link></>}</p></section></div></main>;
 }

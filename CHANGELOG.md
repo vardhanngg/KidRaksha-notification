@@ -49,3 +49,11 @@
 - centralized subscription entitlements with expired-trial enforcement
 - request IDs, structured logs, stable error codes and health latency
 - API contract and security/resource-control documentation
+
+## Stage 6 — Parent SaaS UI completion
+- rebuilt responsive parent console shell and visual system
+- completed dashboard, inbox, devices, billing, settings and onboarding UI
+- added cursor-based inbox UX, filters, bulk actions and notification detail
+- replaced browser dialogs with accessible in-app confirmation dialogs and toasts
+- added route-level loading/error states and mobile navigation
+- added web UI regression checker and accessibility-focused styling
