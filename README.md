@@ -1,14 +1,14 @@
 
-# KidRaksha — Notification Sharing SaaS
+# KidSuraksha — Notification Sharing SaaS
 
-KidRaksha is a consent-based parental notification sharing service.
+KidSuraksha is a consent-based parental notification sharing service.
 
 The product is intentionally focused on one job: a parent can pair a child's Android device and view notifications shared from that device in a secure SaaS dashboard.
 
 ## Product architecture
 
 ```text
-                       KidRaksha SaaS
+                       KidSuraksha SaaS
        ┌───────────────────────────────────────────┐
        │ Parent Web App                            │
        │ Dashboard · Notifications · Devices       │
@@ -95,13 +95,13 @@ This repository was statically reviewed and generated as a complete product foun
 
 ## Current build status
 
-Stages 1–10 are implemented as a release candidate. The repository now includes the KidRaksha SaaS foundation, secure pairing, production notification normalization, durable WorkManager synchronization, offline queue handling, server idempotency, parent-visible sync health, the completed SaaS API contract, the polished parent UI, reconnect-safe realtime updates, Stage 8 security/privacy hardening, and Stage 9 production operations/deployment tooling. Device-level Android testing and live production verification remain final pre-launch checks.
+Stages 1–10 are implemented as a release candidate. The repository now includes the KidSuraksha SaaS foundation, secure pairing, production notification normalization, durable WorkManager synchronization, offline queue handling, server idempotency, parent-visible sync health, the completed SaaS API contract, the polished parent UI, reconnect-safe realtime updates, Stage 8 security/privacy hardening, and Stage 9 production operations/deployment tooling. Device-level Android testing and live production verification remain final pre-launch checks.
 
 ### Stage 9 operations
 The deployment stack now separates migrations and maintenance from the API process, uses liveness/readiness probes, non-root containers, production Nginx/TLS configuration, backup/restore tooling, and protected staging/production deployment workflows. See `docs/STAGE9_OPERATIONS.md` and `docs/DEPLOYMENT.md`.
 
 ## Product direction
-KidRaksha is built as a production-oriented SaaS from the beginning: parent accounts, tenant isolation, subscription entitlements, pairing, notification delivery, privacy controls, child-device transparency, and an operator-ready deployment path are part of one coherent architecture.
+KidSuraksha is built as a production-oriented SaaS from the beginning: parent accounts, tenant isolation, subscription entitlements, pairing, notification delivery, privacy controls, child-device transparency, and an operator-ready deployment path are part of one coherent architecture.
 
 
 Production account creation records acceptance timestamps for the Terms and Privacy Policy, and the SaaS console provides data export and account deletion controls.
