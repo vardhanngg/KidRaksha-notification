@@ -47,13 +47,12 @@ Install
 
 ## Plans
 
-The product model contains starter and family tiers. Prices and limits are configuration/data, not hard-coded entitlements in the Android application.
+The product offers a 7-day trial and two paid options for one child device. Prices and limits are configuration/data, not hard-coded entitlements in the Android application.
 
-Example defaults:
-- Trial: 7 days
-- Starter: 1 child device
-- Family: 4 child devices
-- Retention: 7 / 30 / 60 / 90 days
+Current paid options:
+- Weekly: ₹79/week, 7-day notification retention
+- Monthly: ₹199/month, 30-day notification retention
+- No annual subscription is offered
 
 ## Notification model
 
