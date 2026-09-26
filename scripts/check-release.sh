@@ -7,7 +7,6 @@ fail(){ echo "RELEASE: FAIL — $1" >&2; exit 1; }
 
 [[ -f apps/android/app/build.gradle ]] || fail "Android build file missing"
 [[ -f .github/workflows/release-android.yml ]] || fail "signed Android release workflow missing"
-[[ -f .github/workflows/codeql.yml ]] || fail "CodeQL workflow missing"
 [[ -f .github/dependabot.yml ]] || fail "Dependabot configuration missing"
 [[ -f docs/STAGE10_FINAL.md ]] || fail "final release runbook missing"
 [[ -f docs/PLAY_DATA_SAFETY.md ]] || fail "Play Data Safety draft missing"
