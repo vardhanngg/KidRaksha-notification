@@ -27,17 +27,21 @@ Complete.
 - device rename/revoke
 - pairing heartbeat and device status endpoint
 
-## Stage 3 — Notification capture ⏭️ Next
+## Stage 3 — Notification capture ✅
+Complete.
 
-- refine notification normalization
+- production notification normalization
 - package/app metadata handling
-- conversation/message variations
-- notification filtering controls
-- Android-version edge cases
-- clear handling of redacted/unavailable content
-- capture tests
+- multiline/conversation fallbacks
+- notification type/category classification
+- notification key hashing
+- explicit available/withheld/unavailable content state
+- Android 15+ redaction-safe behavior
+- encrypted queue metadata and bounded sync draining
+- listener reconnect/rebind behavior
+- JVM capture-helper tests
 
-The current `NotificationListenerService` is the foundation that Stage 3 will harden.
+The normalized notification contract is now the foundation for reliable synchronization and the parent inbox.
 
 ## Stage 4 — Reliable synchronization
 

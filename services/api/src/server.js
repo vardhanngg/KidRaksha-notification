@@ -521,18 +521,32 @@ app.post("/v1/device/notifications", deviceLimiter, requireDevice, async (req, r
     const parsed = z.object({
       notifications: z.array(z.object({
         clientNotificationId: z.string().min(1).max(180),
+        notificationKeyHash: z.string().regex(/^[a-f0-9]{64}$/i),
         packageName: z.string().min(1).max(200),
         appName: z.string().min(1).max(120),
+        notificationType: z.enum(["message","email","call","media","alarm","reminder","event","system","progress","service","other"]),
+        category: z.string().max(40).optional().nullable(),
+        channelId: z.string().max(200).optional().nullable(),
+        groupKey: z.string().max(300).optional().nullable(),
+        isOngoing: z.boolean().default(false),
+        isClearable: z.boolean().default(false),
+        isGroupSummary: z.boolean().default(false),
+        contentState: z.enum(["available","withheld","unavailable"]),
         title: z.string().max(500).optional().nullable(),
         body: z.string().max(5000).optional().nullable(),
         postedAt: z.string().datetime()
       })).min(1).max(50)
     }).parse(req.body);
 
-    if (!req.device.content_sharing_enabled) {
-      for (const n of parsed.notifications) {
+    for (const n of parsed.notifications) {
+      if (!req.device.content_sharing_enabled) {
         n.title = null;
         n.body = null;
+        n.contentState = "withheld";
+      } else if (!n.title && !n.body) {
+        n.contentState = "unavailable";
+      } else {
+        n.contentState = "available";
       }
     }
 
@@ -541,13 +555,16 @@ app.post("/v1/device/notifications", deviceLimiter, requireDevice, async (req, r
       for (const n of parsed.notifications) {
         const result = await client.query(
           `INSERT INTO notifications(
-            device_id,parent_id,client_notification_id,package_name,app_name,title_enc,body_enc,posted_at
-           ) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+            device_id,parent_id,client_notification_id,notification_key_hash,package_name,app_name,
+            notification_type,category,channel_id,group_key,is_ongoing,is_clearable,is_group_summary,content_state,
+            title_enc,body_enc,posted_at
+           ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
            ON CONFLICT(device_id,client_notification_id) DO NOTHING
-           RETURNING id,package_name,app_name,posted_at,received_at,read_at`,
+           RETURNING id,package_name,app_name,notification_type,content_state,posted_at,received_at,read_at`,
           [
-            req.device.id, req.device.parent_id, n.clientNotificationId,
-            n.packageName, n.appName,
+            req.device.id, req.device.parent_id, n.clientNotificationId, n.notificationKeyHash,
+            n.packageName, n.appName, n.notificationType, n.category, n.channelId, n.groupKey,
+            n.isOngoing, n.isClearable, n.isGroupSummary, n.contentState,
             encryptText(n.title), encryptText(n.body), n.postedAt
           ]
         );
@@ -561,6 +578,8 @@ app.post("/v1/device/notifications", deviceLimiter, requireDevice, async (req, r
         id: n.id,
         appName: n.app_name,
         packageName: n.package_name,
+        notificationType: n.notification_type,
+        contentState: n.content_state,
         postedAt: n.posted_at,
         deviceId: req.device.id,
         deviceName: req.device.name,
@@ -648,7 +667,7 @@ async function getNotifications(parentId, { search = "", unreadOnly = false, lim
   values.push(limit, offset);
 
   const { rows } = await pool.query(
-    `SELECT n.id,n.package_name,n.app_name,n.title_enc,n.body_enc,n.posted_at,n.received_at,n.read_at,d.id AS device_id,d.name AS device_name
+    `SELECT n.id,n.package_name,n.app_name,n.notification_type,n.category,n.channel_id,n.group_key,n.is_ongoing,n.is_clearable,n.is_group_summary,n.content_state,n.title_enc,n.body_enc,n.posted_at,n.received_at,n.read_at,d.id AS device_id,d.name AS device_name
        FROM notifications n JOIN devices d ON d.id=n.device_id
       WHERE ${where.join(" AND ")}
       ORDER BY n.received_at DESC
@@ -661,6 +680,14 @@ async function getNotifications(parentId, { search = "", unreadOnly = false, lim
       id: row.id,
       package_name: row.package_name,
       app_name: row.app_name,
+      notification_type: row.notification_type,
+      category: row.category,
+      channel_id: row.channel_id,
+      group_key: row.group_key,
+      is_ongoing: row.is_ongoing,
+      is_clearable: row.is_clearable,
+      is_group_summary: row.is_group_summary,
+      content_state: row.content_state,
       title: decryptText(row.title_enc),
       body: decryptText(row.body_enc),
       posted_at: row.posted_at,

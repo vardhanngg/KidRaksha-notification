@@ -18,3 +18,14 @@
 - Added Play monitoring metadata, privacy/legal pages and external account-deletion resource.
 - Hardened production configuration, HTTPS requirements, audit/webhook data retention and plan enforcement.
 - Added Docker/Nginx deployment structure and release checklist.
+
+## Stage 3 — Production Notification Engine
+- Added a dedicated Android notification normalization layer.
+- Added notification type/category and channel/group metadata.
+- Added hashed notification keys and content-aware idempotency.
+- Added explicit available/withheld/unavailable content state.
+- Improved text extraction and normalization for multiline/rich notifications.
+- Improved listener reconnect behavior with framework rebind requests.
+- Increased sync drain capacity while retaining bounded batches.
+- Added JVM tests for notification text normalization and category classification.
+- Updated the SaaS inbox to surface notification type and content-sharing state.

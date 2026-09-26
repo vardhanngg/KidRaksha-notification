@@ -102,3 +102,7 @@ KidRaksha is built as a production-oriented SaaS from the beginning: parent acco
 
 
 Production account creation records acceptance timestamps for the Terms and Privacy Policy, and the SaaS console provides data export and account deletion controls.
+
+### Stage 3
+
+The notification engine now normalizes Android notification metadata, protects notification-key identity with hashing, keeps sensitive content out of identifiers, handles content availability explicitly, and drains the encrypted offline queue in bounded batches.

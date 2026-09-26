@@ -33,6 +33,9 @@ grep -q 'device.paired' "$root/services/api/src/server.js" || { echo "Missing de
 grep -q 'updated_at' "$root/services/api/db/schema.sql" || { echo "Missing Stage 2 device metadata"; exit 1; }
 grep -q 'pairing-codes/:id' "$root/services/api/src/server.js" || { echo "Missing pairing-code cancellation endpoint"; exit 1; }
 grep -q 'isNotificationListenerAccessGranted' "$root/apps/android/app/src/main/java/com/kidraksha/child/ui/MainActivity.kt" || { echo "Missing modern notification-access check"; exit 1; }
+grep -q 'NotificationNormalizer' "$root/apps/android/app/src/main/java/com/kidraksha/child/service/NotificationCaptureService.kt" || { echo "Missing notification normalization layer"; exit 1; }
+grep -q 'notification_key_hash' "$root/services/api/db/schema.sql" || { echo "Missing notification key hashing"; exit 1; }
+grep -q 'content_state' "$root/services/api/db/schema.sql" || { echo "Missing content state"; exit 1; }
 if grep -R -nE 'LittleWatch|littlewatch|LITTLEWATCH' --exclude-dir=.git --exclude='check-product.sh' "$root" >/tmp/kidraksha-brand.txt 2>/dev/null; then
   echo "Legacy product branding remains:"; cat /tmp/kidraksha-brand.txt; exit 1;
 fi
