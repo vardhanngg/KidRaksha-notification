@@ -1,4 +1,4 @@
-# KidRaksha API Contract
+# KidSuraksha API Contract
 
 Stage 5 establishes the production API contract used by the parent SaaS and child Android client.
 
@@ -41,7 +41,7 @@ Query parameters:
 - `to` — exclusive ISO-8601 timestamp.
 - `offset` — legacy transitional mode, 0..5000. New clients should use `cursor`.
 
-Ordering is always `received_at DESC, id DESC`. Cursor pagination is keyset-based and therefore remains stable when new notifications arrive. PostgreSQL documents that large offsets require skipped rows to be computed and recommends a deterministic `ORDER BY`; KidRaksha therefore treats cursor pagination as the long-term contract. citeturn335036search2
+Ordering is always `received_at DESC, id DESC`. Cursor pagination is keyset-based and therefore remains stable when new notifications arrive. PostgreSQL documents that large offsets require skipped rows to be computed and recommends a deterministic `ORDER BY`; KidSuraksha therefore treats cursor pagination as the long-term contract. citeturn335036search2
 
 Example response shape:
 
