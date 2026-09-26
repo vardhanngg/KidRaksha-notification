@@ -22,7 +22,7 @@ grep -q 'USER node' services/api/Dockerfile || fail "API image must run as non-r
 grep -q 'USER node' apps/web/Dockerfile || fail "web image must run as non-root"
 grep -q '/health/live' services/api/Dockerfile || fail "API container healthcheck missing"
 migration_count=$(find services/api/db/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort -V | wc -l | tr -d ' ')
-[[ "$migration_count" -ge 7 ]] || fail "expected Stage 2-8 migrations to be present"
+[[ "$migration_count" -ge 9 ]] || fail "expected Stage 2-10 migrations to be present"
 python3 - <<'PY2'
 from pathlib import Path
 files = sorted(Path("services/api/db/migrations").glob("*.sql"), key=lambda p: int(p.name.split("_", 1)[0]))

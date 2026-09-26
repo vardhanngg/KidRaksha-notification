@@ -15,11 +15,12 @@ import { createRateLimiters, closeRateLimiter, waitForRateLimiter, rateLimiterHe
 import { decodeCursor, decodeNotificationCursor, encodeCursor, notificationCursorFromRow } from "./pagination.js";
 import { PLANS, planFor, planFromProviderId, hmacSha256, createRazorpaySubscription } from "./billing.js";
 import { effectivePlan, subscriptionAccess } from "./entitlements.js";
+import { sendPasswordResetEmail, validateEmailConfig } from "./email.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
 const API_VERSION = "1";
-const API_CONTRACT_VERSION = "6";
+const API_CONTRACT_VERSION = "7";
 const DEVICE_ONLINE_WINDOW_MS = 30 * 60 * 1000;
 const REALTIME_EVENT_RETENTION_DAYS = 7;
 const REALTIME_MAX_SINCE_ID_DIGITS = 19;
@@ -83,7 +84,7 @@ const eventStreamLimiter = rateLimiters.eventStreamLimiter;
 
 function validateRuntimeConfig() {
   if (process.env.NODE_ENV !== "production") return;
-  const required = ["DATABASE_URL", "DATA_ENCRYPTION_KEY", "PAIRING_CODE_SECRET", "RAZORPAY_WEBHOOK_SECRET", "PUBLIC_WEB_ORIGIN", "REDIS_URL"];
+  const required = ["DATABASE_URL", "DATA_ENCRYPTION_KEY", "PAIRING_CODE_SECRET", "RAZORPAY_WEBHOOK_SECRET", "PUBLIC_WEB_ORIGIN", "REDIS_URL", "SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"];
   const missing = required.filter(key => !process.env[key]);
   if (missing.length) throw new Error(`Missing required production configuration: ${missing.join(", ")}`);
   let key;
@@ -96,6 +97,7 @@ function validateRuntimeConfig() {
   }
   if (process.env.PAIRING_CODE_SECRET.length < 32) throw new Error("PAIRING_CODE_SECRET must be at least 32 characters");
   if (process.env.RAZORPAY_WEBHOOK_SECRET.length < 16) throw new Error("RAZORPAY_WEBHOOK_SECRET must be at least 16 characters");
+  validateEmailConfig();
   let origin;
   try { origin = new URL(process.env.PUBLIC_WEB_ORIGIN); } catch { throw new Error("PUBLIC_WEB_ORIGIN must be a valid URL"); }
   if (origin.protocol !== "https:") throw new Error("PUBLIC_WEB_ORIGIN must use HTTPS in production");
@@ -241,6 +243,76 @@ app.post("/v1/auth/login", authLimiter, async (req, res, next) => {
     setSessionCookies(res, session);
     res.json({ user: { id: parent.id, email: parent.email, displayName: parent.display_name } });
   } catch (err) { next(err); }
+});
+
+app.post("/v1/auth/password-reset/request", authLimiter, async (req, res, next) => {
+  try {
+    const input = z.object({ email: z.string().email().max(200).transform(v => v.trim().toLowerCase()) }).strict().parse(req.body);
+    const { rows } = await pool.query("SELECT id,email FROM parents WHERE email=$1", [input.email]);
+    if (rows[0]) {
+      const token = randomToken(32);
+      await tx(async client => {
+        await client.query("UPDATE password_reset_tokens SET used_at=now() WHERE parent_id=$1 AND used_at IS NULL", [rows[0].id]);
+        await client.query(
+          `INSERT INTO password_reset_tokens(id,parent_id,token_hash,expires_at) VALUES($1,$2,$3,now()+interval '30 minutes')`,
+          [crypto.randomUUID(), rows[0].id, sha256(token)]
+        );
+        await client.query(
+          `INSERT INTO audit_log(parent_id,actor_type,action,metadata) VALUES($1,'parent','password_reset_requested',$2)`,
+          [rows[0].id, JSON.stringify({ delivery: "email" })]
+        );
+      });
+      try {
+        await sendPasswordResetEmail({ to: rows[0].email, token });
+      } catch (err) {
+        logger.error({ err }, "password_reset_email_failed");
+      }
+    }
+    // Deliberately identical response for existing/non-existing accounts.
+    res.set("Cache-Control", "no-store");
+    res.json({ ok: true, message: "If an account exists for that email, a password reset link has been sent." });
+  } catch (err) { next(err); }
+});
+
+app.post("/v1/auth/password-reset/confirm", authLimiter, async (req, res, next) => {
+  let client;
+  try {
+    const input = z.object({ token: z.string().min(32).max(256), newPassword: z.string().min(10).max(128) }).strict().parse(req.body);
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `SELECT prt.id,prt.parent_id,p.password_hash
+         FROM password_reset_tokens prt
+         JOIN parents p ON p.id=prt.parent_id
+        WHERE prt.token_hash=$1 AND prt.used_at IS NULL AND prt.expires_at>now()
+        FOR UPDATE`,
+      [sha256(input.token)]
+    );
+    const reset = rows[0];
+    if (!reset) {
+      await client.query("ROLLBACK");
+      return sendError(res, req, 400, "This reset link is invalid or expired.", "password_reset_invalid");
+    }
+    if (passwordMatches(input.newPassword, reset.password_hash)) {
+      await client.query("ROLLBACK");
+      return sendError(res, req, 400, "Choose a password that is different from your current password.", "password_reuse");
+    }
+    await client.query("UPDATE parents SET password_hash=$1,updated_at=now() WHERE id=$2", [passwordHash(input.newPassword), reset.parent_id]);
+    await client.query("DELETE FROM sessions WHERE parent_id=$1", [reset.parent_id]);
+    await client.query("UPDATE password_reset_tokens SET used_at=now() WHERE parent_id=$1 AND used_at IS NULL", [reset.parent_id]);
+    await client.query(
+      `INSERT INTO audit_log(parent_id,actor_type,action,metadata) VALUES($1,'parent','password_reset_completed',$2)`,
+      [reset.parent_id, JSON.stringify({ sessionsRevoked: true })]
+    );
+    await client.query("COMMIT");
+    res.set("Cache-Control", "no-store");
+    res.json({ ok: true });
+  } catch (err) {
+    if (client) { try { await client.query("ROLLBACK"); } catch {} }
+    next(err);
+  } finally {
+    client?.release();
+  }
 });
 
 app.post("/v1/auth/logout", requireParent, requireCsrf, async (req, res, next) => {
@@ -1492,13 +1564,7 @@ async function requireCsrf(req, res, next) {
     if (!timingSafeEqualHex(supplied, cookieHash)) return sendError(res, req, 403, "CSRF validation failed.", "csrf_failed");
     const session = req.auth;
     if (!session?.id) return sendError(res, req, 401, "Authentication required.", "authentication_required");
-    if (session.csrf_token_hash) {
-      if (!timingSafeEqualHex(supplied, session.csrf_token_hash)) return sendError(res, req, 403, "CSRF validation failed.", "csrf_failed");
-    } else if (session.csrf_token) {
-      // One-time compatibility upgrade for sessions created before Stage 8.
-      if (!timingSafeEqualHex(supplied, sha256(session.csrf_token))) return sendError(res, req, 403, "CSRF validation failed.", "csrf_failed");
-      await pool.query("UPDATE sessions SET csrf_token_hash=$1,csrf_token=NULL WHERE id=$2", [supplied, session.id]);
-    } else {
+    if (!session.csrf_token_hash || !timingSafeEqualHex(supplied, session.csrf_token_hash)) {
       return sendError(res, req, 403, "CSRF validation failed.", "csrf_failed");
     }
     next();

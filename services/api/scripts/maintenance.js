@@ -27,6 +27,7 @@ async function runMaintenance() {
     const sessions = await client.query("DELETE FROM sessions WHERE expires_at < now() OR last_seen_at < now()-interval '8 hours'");
     const pairing = await client.query("DELETE FROM pairing_codes WHERE used_at IS NOT NULL OR expires_at < now()-interval '1 day'");
     const realtime = await client.query("DELETE FROM realtime_events WHERE created_at < now()-make_interval(days => $1)", [7]);
+    const passwordReset = await client.query("DELETE FROM password_reset_tokens WHERE used_at IS NOT NULL OR expires_at < now()-interval '1 day'");
     const revoked = await client.query("UPDATE devices SET sharing_enabled=false,content_sharing_enabled=false,updated_at=now() WHERE revoked_at IS NOT NULL AND (sharing_enabled OR content_sharing_enabled)");
     await client.query("COMMIT");
     return {
@@ -34,6 +35,7 @@ async function runMaintenance() {
       sessions: sessions.rowCount || 0,
       pairingCodes: pairing.rowCount || 0,
       realtimeEvents: realtime.rowCount || 0,
+      passwordResetTokens: passwordReset.rowCount || 0,
       revokedDevices: revoked.rowCount || 0,
     };
   } catch (err) {

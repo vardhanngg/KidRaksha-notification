@@ -12,6 +12,9 @@
     "check:realtime": "bash scripts/check-realtime.sh",
     "check:security": "bash scripts/check-security.sh",
     "check:web": "bash scripts/check-web-ui.sh",
-    "check:ops": "bash scripts/check-ops.sh"
+    "check:ops": "bash scripts/check-ops.sh",
+    "check:release": "bash scripts/check-release.sh",
+    "release:check": "bash scripts/check-release.sh",
+    "check:final": "bash scripts/check-final.sh"
   }
 }

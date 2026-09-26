@@ -28,7 +28,7 @@ jobs:
     environment:
       name: production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.release.tag_name || inputs.image_tag }}
       - uses: docker/login-action@v3
@@ -49,6 +49,8 @@ jobs:
           context: apps/web
           file: apps/web/Dockerfile
           push: true
+          build-args: |
+            PUBLIC_WEB_ORIGIN=${{ vars.PUBLIC_URL }}
           tags: |
             ${{ env.WEB_IMAGE }}:${{ github.event.release.tag_name || inputs.image_tag }}
             ${{ env.WEB_IMAGE }}:production
@@ -60,7 +62,7 @@ jobs:
       name: production
       url: ${{ vars.PUBLIC_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.release.tag_name || inputs.image_tag }}
       - name: Configure SSH

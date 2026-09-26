@@ -5,6 +5,9 @@ VERSION="9.6.1"
 DIST_DIR="${GRADLE_USER_HOME:-$HOME/.gradle}/kidraksha/gradle-$VERSION"
 GRADLE_BIN="$DIST_DIR/bin/gradle"
 if [ ! -x "$GRADLE_BIN" ]; then
+  if command -v gradle >/dev/null 2>&1; then
+    exec gradle -p "$ROOT_DIR" "$@"
+  fi
   command -v curl >/dev/null 2>&1 || { echo "curl is required to bootstrap Gradle" >&2; exit 1; }
   command -v unzip >/dev/null 2>&1 || { echo "unzip is required to bootstrap Gradle" >&2; exit 1; }
   tmp="${TMPDIR:-/tmp}/kidraksha-gradle-$VERSION.zip"

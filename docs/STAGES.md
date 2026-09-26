@@ -123,14 +123,10 @@ Complete.
 - deployment-host preflight and external health-check scripts
 - rollback and secret-rotation runbooks
 
-## Stage 10 — Release readiness
+## Stage 10 — Release readiness ✅
 
-- Android release build/AAB
-- real-device testing
-- Play Console declarations
-- privacy/data-safety review
-- live billing verification
-- production smoke tests
-- launch checklist
+Release-candidate engineering is complete. The repository includes Android signing gates, password recovery, final Play/privacy documentation, production smoke tooling, CI release artifacts, signed-AAB signature verification and the final source/release checks.
 
-External device, Play Console, payment-provider and production-infrastructure verification are intentionally kept as the final pre-launch validation step.
+The remaining work is **launch verification in the real environment**: physical Android devices, Google Play Console declarations/review, live Razorpay checkout/webhooks, production TLS/Redis/PostgreSQL/SMTP, backup restore drill, and external production smoke tests. Those are operational acceptance steps rather than additional product features.
+
+See `docs/STAGE10_FINAL.md` and `docs/STAGE10_VERIFICATION.md` for the exact gate and evidence to record.

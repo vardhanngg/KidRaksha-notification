@@ -3,12 +3,23 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../lib/api";
-import { useRealtimeEvent } from "../../lib/realtime/client";
+import {
+  RealtimeProvider,
+  useRealtimeEvent,
+} from "../../lib/realtime/client";
 import { Icon, Toast } from "../../components/ui/UI";
 
 function remaining(expiresAt:string|undefined){return expiresAt?Math.max(0,Math.ceil((new Date(expiresAt).getTime()-Date.now())/1000)):0}
 
 export default function OnboardingPage(){
+  return (
+    <RealtimeProvider>
+      <OnboardingContent />
+    </RealtimeProvider>
+  );
+}
+
+function OnboardingContent(){
   const [code,setCode]=useState(""); const [codeId,setCodeId]=useState(""); const [issuedAt,setIssuedAt]=useState(""); const [expiresAt,setExpiresAt]=useState(""); const [seconds,setSeconds]=useState(0); const [pairedDevice,setPairedDevice]=useState<any>(null); const [deviceCount,setDeviceCount]=useState(0); const [busy,setBusy]=useState(false); const [error,setError]=useState(""); const [copied,setCopied]=useState(false);
   async function loadDevices(){try{const r=await api("/devices");setDeviceCount((r.devices||[]).length)}catch{}}
   useEffect(()=>{loadDevices()},[]);

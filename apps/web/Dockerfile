@@ -5,6 +5,8 @@ RUN npm install --no-audit --no-fund && npm cache clean --force
 
 FROM node:24.21.0-alpine AS builder
 WORKDIR /app
+ARG PUBLIC_WEB_ORIGIN=http://localhost:3000
+ENV PUBLIC_WEB_ORIGIN=$PUBLIC_WEB_ORIGIN
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build

@@ -1,11 +1,16 @@
-
 <resources>
-    <style name="Theme.KidRaksha" parent="@android:style/Theme.Material.NoActionBar">
+    <style name="Theme.KidRaksha" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:statusBarColor">@color/kd_bg</item>
         <item name="android:navigationBarColor">@color/kd_bg</item>
         <item name="android:colorAccent">@color/kd_accent</item>
         <item name="android:windowActionModeOverlay">true</item>
+    </style>
+
+    <style name="Theme.KidRaksha.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/kd_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.KidRaksha</item>
     </style>
 </resources>

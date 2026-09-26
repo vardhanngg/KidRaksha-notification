@@ -95,7 +95,7 @@ This repository was statically reviewed and generated as a complete product foun
 
 ## Current build status
 
-Stages 1–9 are implemented. The repository now includes the KidRaksha SaaS foundation, secure pairing, production notification normalization, durable WorkManager synchronization, offline queue handling, server idempotency, parent-visible sync health, the completed SaaS API contract, the polished parent UI, reconnect-safe realtime updates, Stage 8 security/privacy hardening, and Stage 9 production operations/deployment tooling. Device-level Android testing and live production verification remain final pre-launch checks.
+Stages 1–10 are implemented as a release candidate. The repository now includes the KidRaksha SaaS foundation, secure pairing, production notification normalization, durable WorkManager synchronization, offline queue handling, server idempotency, parent-visible sync health, the completed SaaS API contract, the polished parent UI, reconnect-safe realtime updates, Stage 8 security/privacy hardening, and Stage 9 production operations/deployment tooling. Device-level Android testing and live production verification remain final pre-launch checks.
 
 ### Stage 9 operations
 The deployment stack now separates migrations and maintenance from the API process, uses liveness/readiness probes, non-root containers, production Nginx/TLS configuration, backup/restore tooling, and protected staging/production deployment workflows. See `docs/STAGE9_OPERATIONS.md` and `docs/DEPLOYMENT.md`.
@@ -129,3 +129,11 @@ Stage 9 application and verification steps are in `STAGE9_APPLY.md`.
 
 ### Stage 8 security & privacy
 The SaaS now uses production host-scoped session cookies, server-side idle/absolute expiry, CSRF and Origin/Fetch-Metadata defenses, password rehashing and reauthentication, versioned AES-256-GCM notification encryption with key rotation support, Redis-backed distributed rate limits, hardened browser headers, Android backup/screenshot protections, secure logout/session revocation, and explicit export/deletion controls. See `docs/STAGE8_SECURITY_PRIVACY.md` and `SECURITY.md`.
+
+
+## Release readiness
+Stage 10 provides the final release gate, signed Android AAB workflow, password recovery, Play submission drafts and production smoke tooling. See `docs/STAGE10_FINAL.md`.
+
+
+## Android release automation
+The `Android release` workflow produces a signed AAB only when production signing secrets are available. See `docs/ANDROID_RELEASE.md` and `docs/STAGE10_FINAL.md`.

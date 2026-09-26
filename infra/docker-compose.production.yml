@@ -93,6 +93,7 @@ services:
     environment:
       NODE_ENV: production
       API_INTERNAL_ORIGIN: http://api:4000
+      PUBLIC_WEB_ORIGIN: https://${DOMAIN:?Set DOMAIN}
     depends_on:
       api:
         condition: service_healthy

@@ -181,3 +181,7 @@ The current Express stack runs with Helmet, TLS-required production configuratio
 - `GET /v1/meta` — API/contract feature metadata for compatibility diagnostics.
 
 The API does not run schema migrations during normal application startup. Production deployments run the dedicated migration job first.
+
+## Password recovery
+- `POST /v1/auth/password-reset/request` — generic response; creates a short-lived one-time reset token for known accounts and sends email.
+- `POST /v1/auth/password-reset/confirm` — consumes a valid token, changes the password and revokes existing sessions.

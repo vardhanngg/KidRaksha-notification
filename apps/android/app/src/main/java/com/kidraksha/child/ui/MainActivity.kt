@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import android.widget.*
 import com.kidraksha.child.BuildConfig
 import com.kidraksha.child.data.Prefs
@@ -31,6 +32,7 @@ class MainActivity : Activity() {
     private var rendering = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
         prefs = Prefs(this)

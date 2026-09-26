@@ -1,0 +1,95 @@
+name: Android release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: Android versionCode (must increase for every Play upload)
+        required: true
+        default: "5"
+      version_name:
+        description: Android versionName
+        required: true
+        default: "1.4.0"
+      api_url:
+        description: Production HTTPS API origin
+        required: true
+        type: string
+      ref:
+        description: Git ref to build
+        required: true
+        default: main
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: 9.6.1
+
+      - name: Decode release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          test -n "$KEYSTORE_B64" || { echo "ANDROID_KEYSTORE_B64 is required" >&2; exit 1; }
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/kidraksha-release.jks"
+          chmod 600 "$RUNNER_TEMP/kidraksha-release.jks"
+
+      - name: Build signed AAB
+        working-directory: apps/android
+        env:
+          KIDRAKSHA_API_URL: ${{ inputs.api_url || vars.ANDROID_API_URL }}
+          KIDRAKSHA_VERSION_CODE: ${{ inputs.version_code || vars.ANDROID_VERSION_CODE }}
+          KIDRAKSHA_VERSION_NAME: ${{ inputs.version_name || vars.ANDROID_VERSION_NAME }}
+          KIDRAKSHA_REQUIRE_SIGNING: "true"
+          KIDRAKSHA_RELEASE_KEYSTORE: ${{ runner.temp }}/kidraksha-release.jks
+          KIDRAKSHA_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KIDRAKSHA_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KIDRAKSHA_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KIDRAKSHA_API_URL" || { echo "Production Android API URL is required" >&2; exit 1; }
+          test -n "$KIDRAKSHA_VERSION_CODE" || { echo "Android version code is required" >&2; exit 1; }
+          test -n "$KIDRAKSHA_VERSION_NAME" || { echo "Android version name is required (set input for manual runs or ANDROID_VERSION_NAME for tag runs)" >&2; exit 1; }
+          ./gradlew clean test lint bundleRelease
+          mkdir -p ../../artifacts/android
+          cp app/build/outputs/bundle/release/app-release.aab ../../artifacts/android/KidRaksha-${KIDRAKSHA_VERSION_NAME}.aab
+          test ! -f app/build/outputs/mapping/release/mapping.txt || cp app/build/outputs/mapping/release/mapping.txt ../../artifacts/android/mapping-${KIDRAKSHA_VERSION_NAME}.txt
+
+      - name: Verify AAB
+        run: |
+          test -s artifacts/android/*.aab
+          unzip -t artifacts/android/*.aab >/dev/null
+          jarsigner -verify -verbose -certs artifacts/android/*.aab >/dev/null
+          sha256sum artifacts/android/*.aab | tee artifacts/android/SHA256SUMS.txt
+
+      - name: Upload signed release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KidRaksha-android-${{ inputs.version_name || vars.ANDROID_VERSION_NAME }}
+          path: artifacts/android/
+          if-no-files-found: error
