@@ -62,3 +62,6 @@ Razorpay subscription objects are created server-side. Webhook events are verifi
 ## Retention
 
 A periodic job calls the database retention routine. Notification content older than the tenant retention window is deleted.
+## Stage 4 synchronization
+
+The Android client uses WorkManager rather than custom repeating alarms/receivers for persistent network synchronization. Immediate sync is unique work with a connected-network constraint; periodic reconciliation is a 15-minute minimum cadence and remains subject to OS scheduling/Doze. The server enforces `(device_id, client_notification_id)` idempotency.

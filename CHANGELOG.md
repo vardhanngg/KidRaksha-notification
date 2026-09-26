@@ -29,3 +29,23 @@
 - Increased sync drain capacity while retaining bounded batches.
 - Added JVM tests for notification text normalization and category classification.
 - Updated the SaaS inbox to surface notification type and content-sharing state.
+
+## Stage 4 — Reliable synchronization
+- Replaced AlarmManager polling with WorkManager 2.12.0 persistent sync.
+- Added connected-network constraints, exponential retry/backoff and unique work.
+- Added local sync health state and server-side sync observability.
+- Preserved at-least-once notification delivery with server idempotency.
+- Removed custom boot/sync broadcast receivers.
+- Added bounded offline-queue overflow reporting and parent-device sync health visibility.
+- Hardened upload handling against parent revoke/share-off races.
+- Aligned Android build tooling to AGP 9.3.1 + Kotlin 2.4.20.
+
+### Stage 5 — SaaS API completion
+
+- keyset cursor pagination and mature notification filters
+- notification lifecycle/detail/bulk endpoints
+- device lifecycle/detail/status semantics
+- audit pagination and realtime lifecycle events
+- centralized subscription entitlements with expired-trial enforcement
+- request IDs, structured logs, stable error codes and health latency
+- API contract and security/resource-control documentation

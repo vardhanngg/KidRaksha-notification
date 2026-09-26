@@ -28,7 +28,7 @@ Only SHA-256 hashes are persisted. Pairing returns the plaintext token once.
 ## CSRF
 
 Browser mutation endpoints require a double-submit token:
-- non-HttpOnly `lw_csrf` cookie
+- non-HttpOnly `kidraksha_csrf` cookie
 - `X-CSRF-Token` request header
 
 ## Rate limits

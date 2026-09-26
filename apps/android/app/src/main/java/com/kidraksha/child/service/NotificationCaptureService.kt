@@ -7,7 +7,7 @@ import com.kidraksha.child.data.PendingStore
 import com.kidraksha.child.data.Prefs
 import com.kidraksha.child.data.QueuedNotification
 import com.kidraksha.child.notification.NotificationNormalizer
-import com.kidraksha.child.sync.ScheduleSync
+import com.kidraksha.child.sync.SyncScheduler
 import com.kidraksha.child.sync.SyncManager
 import java.util.concurrent.Executors
 
@@ -23,7 +23,7 @@ class NotificationCaptureService : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         refreshStatusNotification()
-        ScheduleSync.schedule(this)
+        if (Prefs(this).paired && Prefs(this).sharingEnabled) SyncScheduler.ensurePeriodic(this)
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -39,7 +39,10 @@ class NotificationCaptureService : NotificationListenerService() {
         // Android can disconnect/rebind listeners transiently. Ask the framework to
         // restore the listener instead of turning off sharing on every disconnect.
         runCatching { requestRebind(ComponentName(this, NotificationCaptureService::class.java)) }
-        ScheduleSync.schedule(this)
+        if (Prefs(this).paired) {
+            SyncManager.run(this)
+            if (Prefs(this).sharingEnabled) SyncScheduler.ensurePeriodic(this)
+        }
     }
 
     override fun onDestroy() {
@@ -60,7 +63,8 @@ class NotificationCaptureService : NotificationListenerService() {
         }
 
         val normalized = runCatching { normalizer.normalize(sbn, prefs) }.getOrNull() ?: return
-        PendingStore(this).insertIfAbsent(
+        val queue = PendingStore(this)
+        val inserted = queue.insertIfAbsent(
             QueuedNotification(
                 id = 0,
                 clientNotificationId = normalized.clientNotificationId,
@@ -80,7 +84,9 @@ class NotificationCaptureService : NotificationListenerService() {
                 postedAt = normalized.postedAt
             )
         )
-        PendingStore(this).trimTo(5000)
+        if (inserted) {
+            Prefs(this).recordDroppedRows(queue.trimTo(5000))
+        }
         SyncManager.run(this)
     }
 
