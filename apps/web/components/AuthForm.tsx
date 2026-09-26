@@ -32,7 +32,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       <Brand/>
       <div className="authKicker">{mode==="login"?"Parent console":"Start your family workspace"}</div>
       <h1>{mode==="login"?"Welcome back":"Create your parent account"}</h1>
-      <p className="muted">{mode==="login"?"Open your LittleWatch dashboard.":"Start your 7-day trial and connect your first child device."}</p>
+      <p className="muted">{mode==="login"?"Open your KidRaksha dashboard.":"Start your 7-day trial and connect your first child device."}</p>
       {error && <div className="error" style={{marginTop:16}}>{error}</div>}
       <form onSubmit={submit}>
         {mode==="signup" && <div className="field"><label>Your name</label><input className="input" value={name} onChange={e=>setName(e.target.value)} autoComplete="name" required/></div>}

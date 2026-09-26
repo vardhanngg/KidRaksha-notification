@@ -14,7 +14,7 @@ export default function Shell({children}:{children:ReactNode}){
   const path=usePathname(); const router=useRouter(); const [user,setUser]=useState<any>(null); const [healthy,setHealthy]=useState<boolean|null>(null); const [loading,setLoading]=useState(true);
   useEffect(()=>{api("/auth/session").then(r=>setUser(r.user)).catch(()=>router.replace("/login")).finally(()=>setLoading(false)); api("/health").then(()=>setHealthy(true)).catch(()=>setHealthy(false));},[router]);
   async function logout(){try{await api("/auth/logout",{method:"POST"});}finally{router.replace("/");}}
-  if(loading) return <div style={{minHeight:"100vh",display:"grid",placeItems:"center",background:"#f5f6fa"}}>Loading LittleWatch…</div>;
+  if(loading) return <div style={{minHeight:"100vh",display:"grid",placeItems:"center",background:"#f5f6fa"}}>Loading KidRaksha…</div>;
   return <div className="appLayout">
     <aside className="sidebar">
       <Brand dark/>

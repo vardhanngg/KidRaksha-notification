@@ -3,7 +3,7 @@
 
 ## Positioning
 
-LittleWatch is a SaaS parental-control product focused on notification visibility. It is not marketed as a spy or secret-surveillance tool.
+KidRaksha is a SaaS parental-control product focused on notification visibility. It is not marketed as a spy or secret-surveillance tool.
 
 ## Core journey
 
@@ -28,10 +28,10 @@ Install
   → Explain what will be shared
   → Pair
   → Open Android Notification Access
-  → User enables LittleWatch
+  → User enables KidRaksha
   → Choose whether message content is shared
   → Sharing starts
-  → Persistent LittleWatch notification remains visible
+  → Persistent KidRaksha notification remains visible
 ```
 
 ## SaaS areas

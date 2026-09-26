@@ -1,87 +1,109 @@
-
 # Product stages
 
-> **Build policy:** every stage is implemented as part of the final SaaS architecture and UI. There is no temporary developer-only dashboard or disposable bootstrap path. External device, Play Console, payment-provider and production-infrastructure verification still happens before launch.
+> **Build policy:** every stage is implemented inside the same final SaaS architecture and UI. We do not create disposable prototypes between stages.
 
-The codebase is organized so the original 10-stage plan becomes one coherent SaaS product.
+## Stage 1 — Product foundation ✅
+Complete.
 
-## Stage 1 — Product foundation
-Implemented:
-- isolated notification-focused monorepo
-- SaaS data model
-- authenticated web console
-- Android child app foundation
+- notification-focused monorepo
+- parent SaaS console
+- Android child foundation
+- authenticated API and tenant-scoped database
+- secure token/content storage foundations
+- deployment and privacy structure
 
-## Stage 2 — Child onboarding
-Implemented:
-- pairing-code flow
-- explicit sharing disclosure
-- Notification Access deep-link
-- content-sharing choice
-- persistent monitoring status
+## Stage 2 — Onboarding & secure pairing ✅
+Complete.
 
-## Stage 3 — Capture
-Implemented:
-- NotificationListenerService
-- notification normalization
-- own-app filtering
-- local SQLite queue
+- parent setup wizard
+- expiring one-time pairing codes
+- pairing-code cancellation
+- realtime device-paired event with polling fallback
+- Android guided setup state machine
+- modern Notification Listener access check
+- Android notification-permission gate for the visible monitoring status
+- explicit sharing consent and separate message-content consent
+- fail-closed sharing when required access/visibility is lost
+- device rename/revoke
+- pairing heartbeat and device status endpoint
 
-## Stage 4 — Reliability
-Implemented:
-- retry queue
-- periodic sync
-- boot/package-replaced rescheduling
-- heartbeat
-- duplicate-safe ingestion
+## Stage 3 — Notification capture ⏭️ Next
 
-## Stage 5 — SaaS API
-Implemented:
-- tenant auth
-- devices
-- notification CRUD
-- audit trail
-- retention settings
+- refine notification normalization
+- package/app metadata handling
+- conversation/message variations
+- notification filtering controls
+- Android-version edge cases
+- clear handling of redacted/unavailable content
+- capture tests
 
-## Stage 6 — Parent UI
-Implemented:
-- marketing site
-- dashboard
-- notifications
-- devices
-- settings
-- billing
-- legal pages
+The current `NotificationListenerService` is the foundation that Stage 3 will harden.
 
-## Stage 7 — Realtime
-Implemented:
-- SSE event stream
+## Stage 4 — Reliable synchronization
 
-## Stage 8 — Security
-Implemented:
-- password hashing
-- sessions
-- CSRF
-- token hashing
-- content encryption
-- rate limiting
-- verified payment webhooks
+- durable offline queue hardening
+- retry/backoff policy
+- sync acknowledgement model
+- stale queue recovery
+- network/battery behavior validation
+- device clock handling
 
-## Stage 9 — Reliability/operations
-Implemented:
-- health endpoint
-- retention worker endpoint
-- Docker
-- Nginx
-- backup/operational docs
-- static validation script
+The current queue, heartbeat and periodic sync are already the baseline.
+
+## Stage 5 — SaaS API completion
+
+- mature pagination/search
+- device lifecycle APIs
+- notification retention/deletion semantics
+- audit/event model
+- plan entitlement enforcement
+- API observability
+
+## Stage 6 — Parent product UI completion
+
+- production dashboard polish
+- notification inbox UX
+- device management UX
+- onboarding and empty states
+- responsive/mobile web layout
+- accessibility and error states
+
+## Stage 7 — Realtime experience
+
+- SSE hardening
+- reconnect/backoff
+- notification/device event fan-out
+- connection state UX
+- multi-tab behavior
+
+## Stage 8 — Security & privacy hardening
+
+- authentication/session hardening
+- privacy controls
+- encryption/key rotation strategy
+- abuse/rate-limit controls
+- audit review
+- data export/deletion verification
+- Play disclosure review
+
+## Stage 9 — Operations
+
+- Docker/Nginx production deployment
+- database backup/restore
+- health monitoring
+- log/alert strategy
+- staging environment
+- secret rotation
+- migration workflow
 
 ## Stage 10 — Release readiness
-Included:
-- Play compliance checklist
-- release configuration
-- production deployment docs
-- test placeholders
-- explicit verification boundaries
 
-Device and live payment verification remain external pre-launch validation steps.
+- Android release build/AAB
+- real-device testing
+- Play Console declarations
+- privacy/data-safety review
+- live billing verification
+- production smoke tests
+- launch checklist
+
+External device, Play Console, payment-provider and production-infrastructure verification are intentionally kept as the final pre-launch validation step.

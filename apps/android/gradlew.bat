@@ -2,7 +2,7 @@
 setlocal
 set VERSION=9.6.1
 if "%GRADLE_USER_HOME%"=="" set GRADLE_USER_HOME=%USERPROFILE%\.gradle
-set DIST=%GRADLE_USER_HOME%\littlewatch\gradle-%VERSION%
+set DIST=%GRADLE_USER_HOME%\kidraksha\gradle-%VERSION%
 if not exist "%DIST%\bin\gradle.bat" (
   echo Gradle %VERSION% is not installed in %DIST%.
   echo Open this project in Android Studio or install Gradle %VERSION% locally.

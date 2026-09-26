@@ -1,6 +1,6 @@
 
 {
-  "name": "@littlewatch/web",
+  "name": "@kidraksha/web",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -1,10 +1,10 @@
 {
-  "name": "littlewatch",
+  "name": "kidraksha",
   "private": true,
   "workspaces": ["apps/web", "services/api"],
   "scripts": {
-    "api": "npm --workspace @littlewatch/api run dev",
-    "web": "npm --workspace @littlewatch/web run dev",
+    "api": "npm --workspace @kidraksha/api run dev",
+    "web": "npm --workspace @kidraksha/web run dev",
     "check": "bash scripts/check-product.sh"
   }
 }

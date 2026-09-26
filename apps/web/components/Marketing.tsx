@@ -18,7 +18,7 @@ export default function Marketing() {
             <span className="eyebrow">Notification sharing, built for parents</span>
             <h1>Know what reaches your child's phone.</h1>
             <p>
-              LittleWatch gives parents a focused, transparent way to see notifications
+              KidRaksha gives parents a focused, transparent way to see notifications
               their child chooses to share — with secure pairing, a clean dashboard and clear controls.
             </p>
             <div className="row heroActions">
@@ -30,7 +30,7 @@ export default function Marketing() {
           <div className="productFrame">
             <div className="mockDashboard">
               <aside className="mockSide">
-                <div style={{fontWeight:800,color:"#fff"}}>LittleWatch</div>
+                <div style={{fontWeight:800,color:"#fff"}}>KidRaksha</div>
                 <div style={{marginTop:30,display:"grid",gap:13,fontSize:12}}>
                   <div style={{color:"#fff"}}>Overview</div><div>Notifications</div><div>Devices</div><div>Billing</div>
                 </div>
@@ -79,7 +79,7 @@ export default function Marketing() {
             <h2>A calmer parent dashboard.</h2>
             <p className="muted" style={{lineHeight:1.7}}>
               No camera controls. No location. No clutter from unrelated monitoring features.
-              LittleWatch focuses on notification sharing and makes the state of that sharing visible.
+              KidRaksha focuses on notification sharing and makes the state of that sharing visible.
             </p>
           </div>
           <div className="row" style={{marginTop:28}}>
@@ -91,7 +91,7 @@ export default function Marketing() {
 
       <footer className="footer" style={{background:"#fff"}}>
         <div className="container between">
-          <span>© 2026 LittleWatch</span>
+          <span>© 2026 KidRaksha</span>
           <div className="row"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/pricing">Pricing</Link></div>
         </div>
       </footer>

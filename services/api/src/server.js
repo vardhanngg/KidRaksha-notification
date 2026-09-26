@@ -53,7 +53,7 @@ validateRuntimeConfig();
 async function healthHandler(_req, res) {
   try {
     await pool.query("SELECT 1");
-    res.json({ ok: true, service: "littlewatch-api", time: new Date().toISOString() });
+    res.json({ ok: true, service: "kidraksha-api", time: new Date().toISOString() });
   } catch {
     res.status(503).json({ ok: false });
   }
@@ -216,7 +216,7 @@ app.delete("/v1/notifications/:id", requireParent, requireCsrf, async (req, res,
 app.get("/v1/devices", requireParent, async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id,name,platform,app_version,sharing_enabled,content_sharing_enabled,last_seen_at,created_at
+      `SELECT id,name,platform,app_version,sharing_enabled,content_sharing_enabled,last_seen_at,created_at,updated_at
          FROM devices WHERE parent_id=$1 AND revoked_at IS NULL ORDER BY created_at DESC`,
       [req.auth.parent_id]
     );
@@ -248,6 +248,47 @@ app.post("/v1/devices/pairing-codes", pairingLimiter, requireParent, requireCsrf
     );
     await audit(req.auth.parent_id, null, "pairing_code_created", {});
     res.status(201).json({ code, expiresInSeconds: 600, issuedAt: issuedAt.toISOString() });
+  } catch (err) { next(err); }
+});
+
+app.delete("/v1/devices/pairing-codes/:id", requireParent, requireCsrf, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `UPDATE pairing_codes SET used_at=COALESCE(used_at,now())
+       WHERE id=$1 AND parent_id=$2 AND used_at IS NULL AND expires_at>now()
+       RETURNING id`,
+      [req.params.id, req.auth.parent_id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: "Pairing code not found or already closed." });
+    await audit(req.auth.parent_id, null, "pairing_code_cancelled", { pairingCodeId: req.params.id });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+app.post("/v1/devices/:id/rename", requireParent, requireCsrf, async (req, res, next) => {
+  try {
+    const name = z.object({ name: z.string().trim().min(1).max(80) }).parse(req.body).name;
+    const result = await pool.query(
+      `UPDATE devices SET name=$1,updated_at=now()
+       WHERE id=$2 AND parent_id=$3 AND revoked_at IS NULL
+       RETURNING id,name`,
+      [name, req.params.id, req.auth.parent_id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: "Device not found." });
+    await audit(req.auth.parent_id, req.params.id, "device_renamed", { name });
+    res.json({ ok: true, device: result.rows[0] });
+  } catch (err) { next(err); }
+});
+
+app.get("/v1/device/status", deviceLimiter, requireDevice, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id,name,platform,app_version,sharing_enabled,content_sharing_enabled,last_seen_at,created_at,revoked_at
+         FROM devices WHERE id=$1`, [req.device.id]
+    );
+    const device = rows[0];
+    if (!device || device.revoked_at) return res.status(401).json({ error: "Device is not authorized." });
+    res.json({ device, serverTime: new Date().toISOString() });
   } catch (err) { next(err); }
 });
 
@@ -421,7 +462,15 @@ app.post("/v1/device/pair", pairingLimiter, async (req, res, next) => {
         `INSERT INTO audit_log(parent_id,device_id,actor_type,action,metadata) VALUES($1,$2,'device','device_paired',$3)`,
         [parentId,deviceId,JSON.stringify({ name: input.name })]
       );
-      return { deviceId, token };
+      return { deviceId, token, parentId, deviceName: input.name, appVersion: input.appVersion || null };
+    });
+
+    broadcast(result.parentId, "device.paired", {
+      deviceId: result.deviceId,
+      deviceName: result.deviceName,
+      platform: "android",
+      appVersion: result.appVersion || null,
+      pairedAt: new Date().toISOString()
     });
 
     res.status(201).json({
@@ -451,14 +500,15 @@ app.post("/v1/device/heartbeat", deviceLimiter, requireDevice, async (req, res, 
       contentSharingEnabled: z.boolean().optional()
     }).parse(req.body);
 
-    await pool.query(
+    const result = await pool.query(
       `UPDATE devices SET last_seen_at=now(),app_version=COALESCE($1,app_version),
           sharing_enabled=COALESCE($2,sharing_enabled),
-          content_sharing_enabled=COALESCE($3,content_sharing_enabled)
-       WHERE id=$4`,
+          content_sharing_enabled=COALESCE($3,content_sharing_enabled),updated_at=now()
+       WHERE id=$4
+       RETURNING id,name,sharing_enabled,content_sharing_enabled,last_seen_at`,
       [input.appVersion || null, input.sharingEnabled, input.contentSharingEnabled, req.device.id]
     );
-    res.json({ ok: true, serverTime: new Date().toISOString() });
+    res.json({ ok: true, device: result.rows[0], serverTime: new Date().toISOString() });
   } catch (err) { next(err); }
 });
 
@@ -503,7 +553,7 @@ app.post("/v1/device/notifications", deviceLimiter, requireDevice, async (req, r
         );
         if (result.rowCount) inserted.push(result.rows[0]);
       }
-      await client.query("UPDATE devices SET last_seen_at=now() WHERE id=$1", [req.device.id]);
+      await client.query("UPDATE devices SET last_seen_at=now(),updated_at=now() WHERE id=$1", [req.device.id]);
     });
 
     for (const n of inserted) {
@@ -553,7 +603,7 @@ async function handleBillingWebhook(req, res) {
 
     // Keep only the minimum metadata required for idempotency/diagnostics.
     // Do not persist the complete payment-provider payload, which may contain
-    // customer/payment fields unrelated to LittleWatch operation.
+    // customer/payment fields unrelated to KidRaksha operation.
     const eventRecord = JSON.stringify({ providerSubscriptionId });
     const inserted = await pool.query(
       `INSERT INTO webhook_events(provider,provider_event_id,event_type,parent_id,payload)
@@ -729,7 +779,7 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ error: process.env.NODE_ENV === "production" ? "Something went wrong." : err.message });
 });
 
-app.listen(port, () => console.log(`LittleWatch API listening on ${port}`));
+app.listen(port, () => console.log(`KidRaksha API listening on ${port}`));
 
 setInterval(async () => {
   try {

@@ -13,7 +13,7 @@ export default function BillingPage(){
       const Razorpay=(window as any).Razorpay;
       if(!Razorpay)throw new Error("Payment checkout is not available.");
       const checkout=new Razorpay({
-        key:r.keyId,subscription_id:r.subscriptionId,name:"LittleWatch",description:r.plan.name,
+        key:r.keyId,subscription_id:r.subscriptionId,name:"KidRaksha",description:r.plan.name,
         handler:()=>alert("Payment submitted. Your plan will update after the verified billing webhook arrives."),
         prefill:{name:user?.displayName||"",email:user?.email||""},theme:{color:"#7b6df3"}
       });
