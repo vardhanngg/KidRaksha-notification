@@ -834,7 +834,7 @@ app.post("/v1/billing/subscription", parentApiLimiter, requireParent, requireCsr
   let client = null;
   let lockAcquired = false;
   try {
-    const input = z.object({ planKey: z.enum(["starter","family"]), password: z.string().min(1).max(128) }).parse(req.body);
+    const input = z.object({ planKey: z.enum(["weekly","monthly"]), password: z.string().min(1).max(128) }).parse(req.body);
     const planKey = input.planKey;
     if (!hasRecentReauthentication(req.auth)) {
       const { rows: accountRows } = await pool.query("SELECT password_hash FROM parents WHERE id=$1", [req.auth.parent_id]);
@@ -844,7 +844,7 @@ app.post("/v1/billing/subscription", parentApiLimiter, requireParent, requireCsr
       await reauthenticate(pool, req.auth.id, input.password, accountRows[0].password_hash);
     }
     const plan = planFor(planKey);
-    const planId = planKey === "starter" ? process.env.RAZORPAY_PLAN_STARTER : process.env.RAZORPAY_PLAN_FAMILY;
+    const planId = planKey === "weekly" ? process.env.RAZORPAY_PLAN_WEEKLY : (process.env.RAZORPAY_PLAN_MONTHLY || process.env.RAZORPAY_PLAN_STARTER);
     if (!planId) return sendError(res, req, 503, "Billing is being configured. Please try again later.", "billing_unavailable");
 
     client = await pool.connect();
