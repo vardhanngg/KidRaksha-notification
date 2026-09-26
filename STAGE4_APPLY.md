@@ -10,7 +10,7 @@ git checkout -b stage-4-reliable-sync
 
 ## 2. Apply this package at the repository root
 
-Extract the Stage 4 package directly into `/workspaces/KidRaksha-notification`. It should merge into the existing `apps/`, `services/`, `docs/`, `infra/`, `ops/`, and `scripts/` trees. Do not keep the delivery ZIP inside the Git repository.
+Extract the Stage 4 package directly into `/workspaces/KidSuraksha-notification`. It should merge into the existing `apps/`, `services/`, `docs/`, `infra/`, `ops/`, and `scripts/` trees. Do not keep the delivery ZIP inside the Git repository.
 
 ## 3. Static validation
 
@@ -22,7 +22,7 @@ node --check services/api/src/auth.js
 node --check services/api/src/db.js
 ```
 
-`check-product.sh` must report `KidRaksha product structure check: PASS`.
+`check-product.sh` must report `KidSuraksha product structure check: PASS`.
 
 ## 4. Review the migration
 
