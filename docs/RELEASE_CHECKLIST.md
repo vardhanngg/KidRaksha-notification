@@ -1,4 +1,4 @@
-# KidRaksha release checklist
+# KidSuraksha release checklist
 
 ## Repository gates
 - [ ] `bash scripts/check-product.sh`
