@@ -4,14 +4,14 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import cors from "cors";
-import rateLimit from "express-rate-limit";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { pool, tx } from "./db.js";
-import { createSession, getSession, deleteSession, cookieOptions, publicCsrfCookieOptions, COOKIE_NAME, CSRF_COOKIE, passwordHash, passwordMatches } from "./auth.js";
-import { randomToken, sha256, encryptText, decryptText } from "./crypto.js";
+import { createSession, getSession, deleteSession, refreshSessionActivity, cookieOptions, publicCsrfCookieOptions, COOKIE_NAME, CSRF_COOKIE, passwordHash, passwordMatches, passwordNeedsRehash, reauthenticate, hasRecentReauthentication } from "./auth.js";
+import { randomToken, sha256, encryptText, decryptText, timingSafeEqualHex } from "./crypto.js";
 import { addClient, clientCount, finishReplay, publishEvent, replayEvents, streamReady } from "./events.js";
 import logger from "./logger.js";
+import { createRateLimiters, closeRateLimiter, waitForRateLimiter } from "./rate-limit.js";
 import { decodeCursor, decodeNotificationCursor, encodeCursor, notificationCursorFromRow } from "./pagination.js";
 import { PLANS, planFor, planFromProviderId, hmacSha256, createRazorpaySubscription } from "./billing.js";
 import { effectivePlan, subscriptionAccess } from "./entitlements.js";
@@ -19,7 +19,7 @@ import { effectivePlan, subscriptionAccess } from "./entitlements.js";
 const app = express();
 const port = Number(process.env.PORT || 4000);
 const API_VERSION = "1";
-const API_CONTRACT_VERSION = "5";
+const API_CONTRACT_VERSION = "6";
 const DEVICE_ONLINE_WINDOW_MS = 30 * 60 * 1000;
 const REALTIME_EVENT_RETENTION_DAYS = 7;
 const REALTIME_MAX_SINCE_ID_DIGITS = 19;
@@ -28,8 +28,17 @@ const MAX_POSTGRES_BIGINT = 9223372036854775807n;
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'none'"]
+    }
+  },
+  crossOriginEmbedderPolicy: false,
+  referrerPolicy: { policy: "no-referrer" },
+  hsts: process.env.NODE_ENV === "production" ? { maxAge: 63_072_000, includeSubDomains: true, preload: true } : false
 }));
 
 const allowedOrigin = process.env.PUBLIC_WEB_ORIGIN || "http://localhost:3000";
@@ -65,19 +74,31 @@ app.use((req, res, next) => {
   next();
 });
 
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false });
-const pairingLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
-const deviceLimiter = rateLimit({ windowMs: 60 * 1000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false });
-const parentApiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 180, standardHeaders: "draft-8", legacyHeaders: false });
-const eventStreamLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 30, standardHeaders: "draft-8", legacyHeaders: false });
+const rateLimiters = createRateLimiters();
+const authLimiter = rateLimiters.authLimiter;
+const pairingLimiter = rateLimiters.pairingLimiter;
+const deviceLimiter = rateLimiters.deviceLimiter;
+const parentApiLimiter = rateLimiters.parentApiLimiter;
+const eventStreamLimiter = rateLimiters.eventStreamLimiter;
 
 function validateRuntimeConfig() {
   if (process.env.NODE_ENV !== "production") return;
-  const required = ["DATABASE_URL", "DATA_ENCRYPTION_KEY", "PAIRING_CODE_SECRET", "RAZORPAY_WEBHOOK_SECRET", "PUBLIC_WEB_ORIGIN"];
+  const required = ["DATABASE_URL", "DATA_ENCRYPTION_KEY", "PAIRING_CODE_SECRET", "RAZORPAY_WEBHOOK_SECRET", "PUBLIC_WEB_ORIGIN", "REDIS_URL"];
   const missing = required.filter(key => !process.env[key]);
   if (missing.length) throw new Error(`Missing required production configuration: ${missing.join(", ")}`);
-  const key = Buffer.from(process.env.DATA_ENCRYPTION_KEY, "base64");
+  let key;
+  try { key = Buffer.from(process.env.DATA_ENCRYPTION_KEY, "base64"); } catch { throw new Error("DATA_ENCRYPTION_KEY must be valid base64"); }
   if (key.length !== 32) throw new Error("DATA_ENCRYPTION_KEY must decode to exactly 32 bytes");
+  if (process.env.DATA_ENCRYPTION_KEY_PREVIOUS) {
+    let previous;
+    try { previous = Buffer.from(process.env.DATA_ENCRYPTION_KEY_PREVIOUS, "base64"); } catch { throw new Error("DATA_ENCRYPTION_KEY_PREVIOUS must be valid base64"); }
+    if (previous.length !== 32) throw new Error("DATA_ENCRYPTION_KEY_PREVIOUS must decode to exactly 32 bytes");
+  }
+  if (process.env.PAIRING_CODE_SECRET.length < 32) throw new Error("PAIRING_CODE_SECRET must be at least 32 characters");
+  if (process.env.RAZORPAY_WEBHOOK_SECRET.length < 16) throw new Error("RAZORPAY_WEBHOOK_SECRET must be at least 16 characters");
+  let origin;
+  try { origin = new URL(process.env.PUBLIC_WEB_ORIGIN); } catch { throw new Error("PUBLIC_WEB_ORIGIN must be a valid URL"); }
+  if (origin.protocol !== "https:") throw new Error("PUBLIC_WEB_ORIGIN must use HTTPS in production");
 }
 
 validateRuntimeConfig();
@@ -114,7 +135,13 @@ app.get("/v1/meta", (_req, res) => {
       auditLog: true,
       structuredRequestIds: true,
       realtimeEventReplay: true,
-      realtimeConnectionCaps: true
+      realtimeConnectionCaps: true,
+      hashedCsrfTokens: true,
+      secureSessionCookies: true,
+      recentReauthentication: true,
+      passwordRotation: true,
+      sensitiveExportReauthentication: true,
+      distributedRateLimits: Boolean(process.env.REDIS_URL)
     },
     realtime: { maxConnectionsPerParent: 5, maxReplayEvents: 200, retentionDays: REALTIME_EVENT_RETENTION_DAYS },
     limits: { notificationPageSize: 100, notificationBulkSize: 100, notificationUploadBatchSize: 50 }
@@ -146,7 +173,7 @@ app.post("/v1/auth/signup", authLimiter, async (req, res, next) => {
       );
       await client.query(
         `INSERT INTO audit_log(parent_id,actor_type,action,metadata) VALUES($1,'parent','account_created',$2)`,
-        [id, JSON.stringify({ email: input.email, policiesAccepted: true })]
+        [id, JSON.stringify({ policiesAccepted: true })]
       );
       return createSession(client, id);
     });
@@ -169,6 +196,9 @@ app.post("/v1/auth/login", authLimiter, async (req, res, next) => {
       return sendError(res, req, 401, "Invalid email or password.", "invalid_credentials");
     }
 
+    if (passwordNeedsRehash(parent.password_hash)) {
+      await pool.query("UPDATE parents SET password_hash=$1,updated_at=now() WHERE id=$2", [passwordHash(input.password), parent.id]);
+    }
     const session = await createSession(pool, parent.id);
     await audit(parent.id, null, "login", {});
     setSessionCookies(res, session);
@@ -179,10 +209,50 @@ app.post("/v1/auth/login", authLimiter, async (req, res, next) => {
 app.post("/v1/auth/logout", requireParent, requireCsrf, async (req, res, next) => {
   try {
     await audit(req.auth.parent_id, null, "logout", {});
-    await deleteSession(pool, req.cookies?.[COOKIE_NAME] || req.header("x-session-token"));
+    await deleteSession(pool, req.cookies?.[COOKIE_NAME]);
     clearSessionCookies(res);
+    res.set("Clear-Site-Data", '"cache", "cookies", "storage"');
+    res.set("Cache-Control", "no-store");
     res.json({ ok: true });
   } catch (err) { next(err); }
+});
+
+app.post("/v1/auth/password", authLimiter, requireParent, requireCsrf, async (req, res, next) => {
+  let client = null;
+  try {
+    const input = z.object({
+      currentPassword: z.string().min(1).max(128),
+      newPassword: z.string().min(10).max(128)
+    }).strict().parse(req.body);
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const { rows } = await client.query("SELECT password_hash FROM parents WHERE id=$1 FOR UPDATE", [req.auth.parent_id]);
+    if (!rows[0] || !passwordMatches(input.currentPassword, rows[0].password_hash)) {
+      await client.query("ROLLBACK");
+      return sendError(res, req, 401, "The current password is incorrect.", "password_change_failed");
+    }
+    if (passwordMatches(input.newPassword, rows[0].password_hash)) {
+      await client.query("ROLLBACK");
+      return sendError(res, req, 400, "Choose a new password that is different from your current password.", "password_reuse");
+    }
+    const nextHash = passwordHash(input.newPassword);
+    await client.query("UPDATE parents SET password_hash=$1,updated_at=now() WHERE id=$2", [nextHash, req.auth.parent_id]);
+    await client.query("DELETE FROM sessions WHERE parent_id=$1", [req.auth.parent_id]);
+    const session = await createSession(client, req.auth.parent_id);
+    await client.query(
+      `INSERT INTO audit_log(parent_id,actor_type,action,metadata) VALUES($1,'parent','password_changed',$2)`,
+      [req.auth.parent_id, JSON.stringify({ sessionsRevoked: true })]
+    );
+    await client.query("COMMIT");
+    setSessionCookies(res, session);
+    res.set("Cache-Control", "no-store");
+    res.json({ ok: true });
+  } catch (err) {
+    if (client) { try { await client.query("ROLLBACK"); } catch {} }
+    next(err);
+  } finally {
+    client?.release();
+  }
 });
 
 app.get("/v1/auth/session", requireParent, async (req, res) => {
@@ -194,6 +264,19 @@ app.get("/v1/auth/session", requireParent, async (req, res) => {
       retentionDays: req.auth.retention_days
     }
   });
+});
+
+app.post("/v1/auth/reauth", authLimiter, requireParent, requireCsrf, async (req, res, next) => {
+  try {
+    const password = z.object({ password: z.string().min(1).max(128) }).parse(req.body).password;
+    const { rows } = await pool.query("SELECT password_hash FROM parents WHERE id=$1", [req.auth.parent_id]);
+    if (!rows[0] || !await reauthenticate(pool, req.auth.id, password, rows[0].password_hash)) {
+      return sendError(res, req, 401, "The current password is incorrect.", "reauthentication_failed");
+    }
+    await audit(req.auth.parent_id, null, "reauthenticated", {});
+    res.set("Cache-Control", "no-store");
+    res.json({ ok: true, expiresInSeconds: 15 * 60 });
+  } catch (err) { next(err); }
 });
 
 app.get("/v1/dashboard/summary", requireParent, async (req, res, next) => {
@@ -575,6 +658,9 @@ app.patch("/v1/settings", parentApiLimiter, requireParent, requireCsrf, async (r
 
 app.get("/v1/account/export", parentApiLimiter, requireParent, async (req, res, next) => {
   try {
+    if (!hasRecentReauthentication(req.auth)) {
+      return sendError(res, req, 401, "Recent reauthentication is required before exporting account data.", "reauthentication_required");
+    }
     const parentId = req.auth.parent_id;
     const [parent, devices, notifications, subscription] = await Promise.all([
       pool.query("SELECT email,display_name,created_at,retention_days,terms_accepted_at,privacy_accepted_at FROM parents WHERE id=$1", [parentId]),
@@ -601,7 +687,14 @@ app.get("/v1/account/export", parentApiLimiter, requireParent, async (req, res, 
 app.delete("/v1/account", requireParent, requireCsrf, async (req, res, next) => {
   try {
     const parentId = req.auth.parent_id;
-    const confirm = z.object({ confirmation: z.literal("DELETE") }).parse(req.body);
+    const confirm = z.object({ confirmation: z.literal("DELETE"), password: z.string().min(1).max(128) }).parse(req.body);
+    const { rows: accountRows } = await pool.query("SELECT password_hash FROM parents WHERE id=$1", [parentId]);
+    if (!accountRows[0] || !passwordMatches(confirm.password, accountRows[0].password_hash)) {
+      return sendError(res, req, 401, "The current password is incorrect.", "reauthentication_failed");
+    }
+    if (!hasRecentReauthentication(req.auth)) {
+      await reauthenticate(pool, req.auth.id, confirm.password, accountRows[0].password_hash);
+    }
     if (confirm.confirmation !== "DELETE") throw httpError(400, "Type DELETE to confirm account deletion.");
     await tx(async client => {
       await client.query("DELETE FROM audit_log WHERE parent_id=$1", [parentId]);
@@ -609,6 +702,8 @@ app.delete("/v1/account", requireParent, requireCsrf, async (req, res, next) => 
       await client.query("DELETE FROM parents WHERE id=$1", [parentId]);
     });
     clearSessionCookies(res);
+    res.set("Clear-Site-Data", '"cache", "cookies", "storage"');
+    res.set("Cache-Control", "no-store");
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -630,7 +725,15 @@ app.post("/v1/billing/subscription", parentApiLimiter, requireParent, requireCsr
   let client = null;
   let lockAcquired = false;
   try {
-    const planKey = z.object({ planKey: z.enum(["starter","family"]) }).parse(req.body).planKey;
+    const input = z.object({ planKey: z.enum(["starter","family"]), password: z.string().min(1).max(128) }).parse(req.body);
+    const planKey = input.planKey;
+    if (!hasRecentReauthentication(req.auth)) {
+      const { rows: accountRows } = await pool.query("SELECT password_hash FROM parents WHERE id=$1", [req.auth.parent_id]);
+      if (!accountRows[0] || !passwordMatches(input.password, accountRows[0].password_hash)) {
+        return sendError(res, req, 401, "Current password required for billing changes.", "reauthentication_required");
+      }
+      await reauthenticate(pool, req.auth.id, input.password, accountRows[0].password_hash);
+    }
     const plan = planFor(planKey);
     const planId = planKey === "starter" ? process.env.RAZORPAY_PLAN_STARTER : process.env.RAZORPAY_PLAN_FAMILY;
     if (!planId) return sendError(res, req, 503, "Billing is being configured. Please try again later.", "billing_unavailable");
@@ -722,7 +825,20 @@ app.get("/v1/events/stream", eventStreamLimiter, requireParent, async (req, res,
       if (res.writableEnded || res.destroyed) return cleanup();
       try { res.write(`: keep-alive ${Date.now()}\n\n`); } catch { cleanup(); }
     }, 20_000);
-    res.on("close", () => { clearInterval(keepAlive); cleanup(); });
+    const sessionWatch = setInterval(async () => {
+      if (res.writableEnded || res.destroyed) return cleanup();
+      try {
+        const active = await refreshSessionActivity(pool, req.auth.id);
+        if (!active) {
+          try { res.write(formatSessionCloseEvent()); } catch {}
+          try { res.end(); } catch {}
+          cleanup();
+        }
+      } catch (err) {
+        logger.warn({ err, sessionId: req.auth.id }, "realtime_session_check_failed");
+      }
+    }, 60_000);
+    res.on("close", () => { clearInterval(keepAlive); clearInterval(sessionWatch); cleanup(); });
     res.setTimeout?.(0);
   } catch (err) { next(err); }
 });
@@ -1304,9 +1420,13 @@ function clearSessionCookies(res) {
   res.clearCookie(CSRF_COOKIE, publicCsrfCookieOptions());
 }
 
+function formatSessionCloseEvent() {
+  return 'event: session.revoked\ndata: {"reason":"session_invalid"}\n\n';
+}
+
 async function requireParent(req, res, next) {
   try {
-    const token = req.cookies?.[COOKIE_NAME] || req.header("x-session-token");
+    const token = req.cookies?.[COOKIE_NAME];
     const session = await getSession(pool, token);
     if (!session) return sendError(res, req, 401, "Authentication required.", "authentication_required");
     req.auth = session;
@@ -1314,11 +1434,38 @@ async function requireParent(req, res, next) {
   } catch (err) { next(err); }
 }
 
-function requireCsrf(req, res, next) {
-  const cookieToken = req.cookies?.[CSRF_COOKIE];
-  const headerToken = req.header("x-csrf-token");
-  if (!cookieToken || !headerToken || cookieToken !== headerToken) return sendError(res, req, 403, "CSRF validation failed.", "csrf_failed");
-  next();
+async function requireCsrf(req, res, next) {
+  try {
+    const fetchSite = req.header("sec-fetch-site");
+    if (fetchSite === "cross-site") {
+      return sendError(res, req, 403, "Cross-site state-changing requests are not allowed.", "cross_site_request_rejected");
+    }
+    const origin = req.header("origin");
+    if (origin && origin !== process.env.PUBLIC_WEB_ORIGIN) {
+      return sendError(res, req, 403, "Request origin is not allowed.", "origin_rejected");
+    }
+    if (process.env.NODE_ENV === "production" && origin !== process.env.PUBLIC_WEB_ORIGIN) {
+      return sendError(res, req, 403, "Request origin is required.", "origin_required");
+    }
+    const cookieToken = req.cookies?.[CSRF_COOKIE];
+    const headerToken = req.header("x-csrf-token");
+    if (!cookieToken || !headerToken) return sendError(res, req, 403, "CSRF validation failed.", "csrf_failed");
+    const supplied = sha256(headerToken);
+    const cookieHash = sha256(cookieToken);
+    if (!timingSafeEqualHex(supplied, cookieHash)) return sendError(res, req, 403, "CSRF validation failed.", "csrf_failed");
+    const session = req.auth;
+    if (!session?.id) return sendError(res, req, 401, "Authentication required.", "authentication_required");
+    if (session.csrf_token_hash) {
+      if (!timingSafeEqualHex(supplied, session.csrf_token_hash)) return sendError(res, req, 403, "CSRF validation failed.", "csrf_failed");
+    } else if (session.csrf_token) {
+      // One-time compatibility upgrade for sessions created before Stage 8.
+      if (!timingSafeEqualHex(supplied, sha256(session.csrf_token))) return sendError(res, req, 403, "CSRF validation failed.", "csrf_failed");
+      await pool.query("UPDATE sessions SET csrf_token_hash=$1,csrf_token=NULL WHERE id=$2", [supplied, session.id]);
+    } else {
+      return sendError(res, req, 403, "CSRF validation failed.", "csrf_failed");
+    }
+    next();
+  } catch (err) { next(err); }
 }
 
 async function requireDevice(req, res, next) {
@@ -1367,12 +1514,24 @@ app.use((err, req, res, _next) => {
   });
 });
 
-app.listen(port, () => logger.info({ port, apiVersion: API_VERSION, contractVersion: API_CONTRACT_VERSION }, "api_listening"));
+await waitForRateLimiter();
+const server = app.listen(port, () => logger.info({ port, apiVersion: API_VERSION, contractVersion: API_CONTRACT_VERSION }, "api_listening"));
+
+async function shutdown(signal) {
+  logger.info({ signal }, "api_shutdown");
+  server.close(async () => {
+    try { await closeRateLimiter(); } catch {}
+    try { await pool.end(); } catch {}
+    process.exit(0);
+  });
+}
+process.once("SIGTERM", () => void shutdown("SIGTERM"));
+process.once("SIGINT", () => void shutdown("SIGINT"));
 
 setInterval(async () => {
   try {
     await pool.query("SELECT purge_expired_notifications()");
-    await pool.query("DELETE FROM sessions WHERE expires_at<now()");
+    await pool.query("DELETE FROM sessions WHERE expires_at<now() OR last_seen_at<now()-interval '8 hours'");
     await pool.query("DELETE FROM pairing_codes WHERE used_at IS NOT NULL OR expires_at<now()-interval '1 day'");
     await pool.query(`DELETE FROM realtime_events WHERE created_at < now() - make_interval(days => ${REALTIME_EVENT_RETENTION_DAYS})`);
     await pool.query("UPDATE devices SET sharing_enabled=false WHERE revoked_at IS NOT NULL");

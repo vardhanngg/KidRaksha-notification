@@ -12,6 +12,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.spec.GCMParameterSpec
 
 class SecureStore(context: Context) {
+    // Device credentials and offline notification content are kept outside normal app backups.
     private val prefs = context.getSharedPreferences("kidraksha_secure", Context.MODE_PRIVATE)
     private val alias = "kidraksha_device_token"
 

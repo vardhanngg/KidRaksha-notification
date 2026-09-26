@@ -9,6 +9,8 @@
     "api": "npm --workspace @kidraksha/api run dev",
     "web": "npm --workspace @kidraksha/web run dev",
     "check": "bash scripts/check-product.sh",
-    "check:realtime": "bash scripts/check-realtime.sh"
+    "check:realtime": "bash scripts/check-realtime.sh",
+    "check:security": "bash scripts/check-security.sh",
+    "check:web": "bash scripts/check-web-ui.sh"
   }
 }

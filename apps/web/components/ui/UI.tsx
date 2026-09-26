@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 
 export function Icon({ name, size = 18, stroke = 1.9 }: { name: string; size?: number; stroke?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: stroke, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
@@ -67,4 +67,12 @@ export function ConfirmDialog({ open, title, body, confirmLabel, danger = false,
   }, [open, busy, onCancel]);
   if (!open) return null;
   return <div className="modalBackdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onCancel(); }}><div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body" tabIndex={-1}><div className="modalIcon"><Icon name={danger ? "alert" : "info"} size={22}/></div><h2 id="confirm-title">{title}</h2><p id="confirm-body">{body}</p><div className="modalActions"><button className="btn ghost" onClick={onCancel} disabled={busy}>Cancel</button><button className={`btn ${danger ? "dangerSolid" : "accent"}`} onClick={onConfirm} disabled={busy}>{busy ? "Working…" : confirmLabel}</button></div></div></div>;
+}
+
+export function ReauthDialog({ open, title, body, confirmLabel, danger = false, busy = false, onCancel, onConfirm }: { open: boolean; title: string; body: string; confirmLabel: string; danger?: boolean; busy?: boolean; onCancel: () => void; onConfirm: (password: string) => void }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [password, setPassword] = useState("");
+  useEffect(() => { if (!open) { setPassword(""); return; } dialogRef.current?.focus(); }, [open]);
+  if (!open) return null;
+  return <div className="modalBackdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onCancel(); }}><div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="reauth-title" aria-describedby="reauth-body" tabIndex={-1}><div className="modalIcon"><Icon name="shield" size={22}/></div><h2 id="reauth-title">{title}</h2><p id="reauth-body">{body}</p><label className="field"><span>Password</span><input autoFocus className="input" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && password && !busy) onConfirm(password); }} /></label><div className="modalActions"><button className="btn ghost" onClick={onCancel} disabled={busy}>Cancel</button><button className={`btn ${danger ? "dangerSolid" : "accent"}`} onClick={() => onConfirm(password)} disabled={busy || !password}>{busy ? "Working…" : confirmLabel}</button></div></div></div>;
 }

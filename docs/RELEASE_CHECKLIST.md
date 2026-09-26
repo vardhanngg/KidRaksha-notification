@@ -34,3 +34,20 @@
 - Parent Devices page reports last sync, pending count, failures, and offline-loss telemetry.
 - WorkManager work is unique, network-constrained, and its 15-minute periodic cadence is treated as inexact.
 - Android 16 job quota/stop-reason behavior is validated on a real device before release.
+
+
+## Stage 8 security gate
+- [ ] Set `REDIS_URL` in production and verify Redis connectivity; use authenticated/TLS transport when Redis is outside the private network.
+- [ ] Generate and securely store a 32-byte `DATA_ENCRYPTION_KEY`; retain the previous key only during planned rotation.
+- [ ] Verify HTTPS and `__Host-` session cookies in production.
+- [ ] Verify CSP, HSTS, Permissions-Policy, frame and referrer protections at the deployed host.
+- [ ] Re-check the current Next.js security release immediately before deployment and apply all high/critical dependency fixes available at release time.
+- [ ] Complete Play monitoring-tool, privacy and Data Safety declarations against the final build.
+- [ ] Verify account deletion, password change, export reauthentication, session expiry, logout and realtime session revocation end to end.
+- [ ] Run `npm --workspace @kidraksha/api test` and the production web typecheck/build in CI.
+
+- [ ] Re-check the current Next.js security release before production deployment.
+- [ ] Apply all high/critical framework and dependency security updates available at release time.
+- [ ] Confirm production Redis uses authenticated/TLS transport when hosted outside the private application network.
+- [ ] Confirm the production encryption key rotation procedure and previous-key retirement window.
+- [ ] Verify account deletion, password change, export reauthentication, session expiry, and logout behavior end to end.

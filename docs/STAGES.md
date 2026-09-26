@@ -88,23 +88,26 @@ Complete.
 The web UI now consumes the Stage 5 API as a customer-facing SaaS rather than a prototype inspector.
 
 
-## Stage 7 — Realtime experience
+## Stage 7 — Realtime experience ✅
+Complete.
 
-- SSE hardening
-- reconnect/backoff
+- durable SSE event IDs and replay
+- reconnect/backoff and resync
 - notification/device event fan-out
-- connection state UX
-- multi-tab behavior
+- shared console connection state UX
+- multi-tab-safe realtime client behavior
 
-## Stage 8 — Security & privacy hardening
+## Stage 8 — Security & privacy hardening ✅
+Complete.
 
-- authentication/session hardening
-- privacy controls
-- encryption/key rotation strategy
-- abuse/rate-limit controls
-- audit review
-- data export/deletion verification
-- Play disclosure review
+- authentication/session and CSRF hardening
+- password strengthening, password change, reauthentication
+- notification encryption and encryption-key rotation support
+- Redis-backed distributed abuse/rate-limit controls
+- browser security headers and session revocation
+- Android secret/backup/screenshot protections
+- export/deletion security controls and release security gate
+- Play monitoring/privacy disclosure review
 
 ## Stage 9 — Operations
 

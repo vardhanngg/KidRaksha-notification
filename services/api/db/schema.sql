@@ -15,12 +15,16 @@ CREATE TABLE IF NOT EXISTS sessions (
   id UUID PRIMARY KEY,
   parent_id UUID NOT NULL REFERENCES parents(id) ON DELETE CASCADE,
   token_hash TEXT NOT NULL UNIQUE,
-  csrf_token TEXT NOT NULL,
+  csrf_token TEXT,
+  csrf_token_hash TEXT,
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_reauthenticated_at TIMESTAMPTZ,
   expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_parent ON sessions(parent_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_idle ON sessions(last_seen_at);
 
 CREATE TABLE IF NOT EXISTS pairing_codes (
   id UUID PRIMARY KEY,

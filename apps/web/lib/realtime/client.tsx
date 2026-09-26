@@ -37,6 +37,7 @@ const EVENT_NAMES = [
   "device.revoked",
   "device.sync.updated",
   "resync.required",
+  "session.revoked",
 ];
 
 function readStoredEventId() {
@@ -121,6 +122,26 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           try { payload = JSON.parse(message.data); } catch { payload = { raw: message.data }; }
           emitLocal(name, payload, message);
           if (name === "resync.required") emitLocal("connection.resyncRequired", payload, message);
+          if (name === "session.revoked") {
+            source?.close();
+            try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+            setLastEventId(null);
+            fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
+              .then(response => {
+                if (response.ok) {
+                  setStatus("reconnecting");
+                  connect();
+                  return;
+                }
+                stoppedRef.current = true;
+                window.location.assign("/login?reason=session-expired");
+              })
+              .catch(() => {
+                // A network interruption does not prove that the session is invalid.
+                setStatus("reconnecting");
+                connect();
+              });
+          }
         });
       }
     };

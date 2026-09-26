@@ -67,3 +67,21 @@
 - Added live/reconnecting/offline connection status and reconnect/resync reconciliation hooks.
 - Coalesced bulk notification mutations into one realtime event each to avoid event storms.
 - Added realtime framing/replay/buffering/cap tests.
+
+## Stage 8 — Security & privacy hardening
+- Hardened production sessions with `__Host-` cookies, CSRF/Origin/Fetch-Metadata validation, idle/absolute expiry and realtime session revocation.
+- Upgraded password hashing to OWASP-aligned scrypt parameters with transparent legacy rehashing and added password-change/session-rotation flow.
+- Added recent reauthentication for billing changes, sensitive export and account deletion.
+- Added AES-256-GCM ciphertext versioning with previous-key rotation support and hardened Android backup/screenshot exposure.
+- Added Redis-backed distributed rate limiting, production browser security headers and security policy documentation.
+- Updated the API baseline to Express 5.2.1 and added Dependabot/release security gates.
+
+- Hardened parent sessions with hashed CSRF tokens, `__Host-` cookies in production, SameSite=Strict, idle expiry and recent reauthentication.
+- Upgraded password hashing to OWASP-aligned scrypt parameters with transparent legacy rehashing.
+- Added AES-256-GCM ciphertext versioning and previous-key rotation support.
+- Added Redis-backed distributed rate limiting for production.
+- Added CSP/HSTS/clickjacking/referrer/permissions/resource policy headers to the SaaS UI.
+- Added Origin validation for state-changing parent requests and Clear-Site-Data on logout/deletion.
+- Added recent-password confirmation for billing changes and account deletion.
+- Hardened Android UI screenshots and documented backup exclusion/secret handling.
+- Added Stage 8 security/privacy documentation and migration 008.
