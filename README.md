@@ -95,7 +95,7 @@ This repository was statically reviewed and generated as a complete product foun
 
 ## Current build status
 
-Stages 1–7 are implemented. The repository now includes the KidRaksha SaaS foundation, secure pairing, production notification normalization, durable WorkManager synchronization, offline queue handling, server idempotency, parent-visible sync health, the completed SaaS API contract, the polished parent UI, and reconnect-safe realtime updates. Device-level Android testing and live production verification remain final pre-launch checks.
+Stages 1–8 are implemented. The repository now includes the KidRaksha SaaS foundation, secure pairing, production notification normalization, durable WorkManager synchronization, offline queue handling, server idempotency, parent-visible sync health, the completed SaaS API contract, the polished parent UI, reconnect-safe realtime updates, and the Stage 8 security/privacy hardening. Device-level Android testing and live production verification remain final pre-launch checks.
 
 ## Product direction
 KidRaksha is built as a production-oriented SaaS from the beginning: parent accounts, tenant isolation, subscription entitlements, pairing, notification delivery, privacy controls, child-device transparency, and an operator-ready deployment path are part of one coherent architecture.
@@ -121,3 +121,8 @@ Notification synchronization uses WorkManager for persistent background executio
 Stage 6 completes the parent-facing SaaS experience on top of the Stage 5 API. See `docs/STAGE6_PARENT_UI.md` and `docs/STAGE6_VERIFICATION.md`.
 
 Stage 6 application and verification steps are in `STAGE6_APPLY.md`.
+
+Stage 8 application and verification steps are in `STAGE8_APPLY.md`.
+
+### Stage 8 security & privacy
+The SaaS now uses production host-scoped session cookies, server-side idle/absolute expiry, CSRF and Origin/Fetch-Metadata defenses, password rehashing and reauthentication, versioned AES-256-GCM notification encryption with key rotation support, Redis-backed distributed rate limits, hardened browser headers, Android backup/screenshot protections, secure logout/session revocation, and explicit export/deletion controls. See `docs/STAGE8_SECURITY_PRIVACY.md` and `SECURITY.md`.

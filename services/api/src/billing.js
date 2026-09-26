@@ -45,5 +45,8 @@ export async function createRazorpaySubscription({ planId, totalCount = 120 }) {
   }
   const body = await response.json();
   if (!response.ok) throw new Error(body?.error?.description || "Razorpay subscription creation failed");
+  if (!body || typeof body.id !== "string" || body.id.length < 8 || body.id.length > 200) {
+    throw new Error("Razorpay returned an invalid subscription response");
+  }
   return body;
 }

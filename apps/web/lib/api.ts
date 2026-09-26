@@ -22,7 +22,9 @@ export async function api<T = any>(path: string, options: RequestInit = {}): Pro
   const headers = new Headers(options.headers);
   if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const csrf = typeof document !== "undefined"
-    ? document.cookie.split("; ").find(v => v.startsWith("kidraksha_csrf="))?.split("=")[1]
+    ? document.cookie.split("; ").map(v => v.trim())
+        .find(v => v.startsWith("__Host-kidraksha_csrf=") || v.startsWith("kidraksha_csrf="))
+        ?.split("=")[1]
     : undefined;
   if (csrf) headers.set("X-CSRF-Token", decodeURIComponent(csrf));
   const response = await fetch(`/api${path}`, {

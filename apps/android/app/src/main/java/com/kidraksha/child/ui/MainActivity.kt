@@ -32,6 +32,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
         prefs = Prefs(this)
         secure = SecureStore(this)
         window.statusBarColor = getColor(R.color.kd_bg)

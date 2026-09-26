@@ -1,5 +1,16 @@
 
 services:
+  redis:
+    image: redis:8.10.2-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   postgres:
     image: postgres:17
     environment:
@@ -29,8 +40,12 @@ services:
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:?Set RAZORPAY_WEBHOOK_SECRET}
       RAZORPAY_PLAN_STARTER: ${RAZORPAY_PLAN_STARTER:-}
       RAZORPAY_PLAN_FAMILY: ${RAZORPAY_PLAN_FAMILY:-}
+      REDIS_URL: redis://redis:6379
+      DATA_ENCRYPTION_KEY_PREVIOUS: ${DATA_ENCRYPTION_KEY_PREVIOUS:-}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     expose:
       - "4000"
@@ -57,3 +72,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:
