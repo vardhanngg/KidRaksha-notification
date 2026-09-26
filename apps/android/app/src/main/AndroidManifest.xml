@@ -17,6 +17,13 @@
             android:value="child_monitoring" />
 
         <activity
+            android:name=".ui.ProvisioningActivity"
+            android:exported="true">
+            <intent-filter><action android:name="android.app.action.GET_PROVISIONING_MODE" /></intent-filter>
+            <intent-filter><action android:name="android.app.action.ADMIN_POLICY_COMPLIANCE" /><category android:name="android.intent.category.PROVISIONING_FINALIZATION" /></intent-filter>
+        </activity>
+
+        <activity
             android:name=".ui.MainActivity"
             android:exported="true">
             <intent-filter>
@@ -24,6 +31,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver android:name=".device.KidRakshaDeviceAdminReceiver" android:exported="true" android:label="@string/device_admin_label" android:description="@string/device_admin_description" android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data android:name="android.app.device_admin" android:resource="@xml/device_admin" />
+            <intent-filter><action android:name="android.app.action.DEVICE_ADMIN_ENABLED" /></intent-filter>
+        </receiver>
 
         <service
             android:name=".service.NotificationCaptureService"
