@@ -6,7 +6,17 @@ import org.junit.Test
 
 class NotificationTextTest {
     @Test fun cleansWhitespaceAndControlCharacters() {
-        assertEquals("Hello world\nAgain", NotificationText.clean("  Hello\u0000  world\n\n\nAgain  ", 500))
+        assertEquals(
+            "Hello world\n\nAgain",
+            NotificationText.clean("  Hello\u0000  world\n\n\nAgain  ", 500)
+        )
+    }
+
+    @Test fun normalizesLineEndingsAndLineWhitespace() {
+        assertEquals(
+            "One\nTwo\nThree",
+            NotificationText.clean("  One  \r\n\tTwo\r\nThree  ", 500)
+        )
     }
 
     @Test fun joinsNotificationLines() {
@@ -15,5 +25,10 @@ class NotificationTextTest {
 
     @Test fun blankTextBecomesNull() {
         assertNull(NotificationText.clean(" \t\n ", 100))
+    }
+
+    @Test fun nonPositiveLimitBecomesNull() {
+        assertNull(NotificationText.clean("Hello", 0))
+        assertNull(NotificationText.clean("Hello", -1))
     }
 }
