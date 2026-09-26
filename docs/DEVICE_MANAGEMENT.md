@@ -1,19 +1,19 @@
-# KidRaksha Android Device Management
+# KidSuraksha Android Device Management
 
-KidRaksha supports Android Device Owner / Device Policy Controller provisioning.
+KidSuraksha supports Android Device Owner / Device Policy Controller provisioning.
 
-A normal Android app cannot reliably prevent a user from uninstalling it. When KidRaksha is successfully provisioned as Device Owner, it uses DevicePolicyManager.setUninstallBlocked() and Android enforces the uninstall restriction.
+A normal Android app cannot reliably prevent a user from uninstalling it. When KidSuraksha is successfully provisioned as Device Owner, it uses DevicePolicyManager.setUninstallBlocked() and Android enforces the uninstall restriction.
 
 ## Enrollment
-Device Owner is established during Android managed provisioning, not through an ordinary runtime permission. Prepare the child phone for managed setup, provision the signed KidRaksha package through Android's supported managed enrollment flow, let Android invoke the provisioning handlers, then complete normal KidRaksha pairing and Notification Access setup.
+Device Owner is established during Android managed provisioning, not through an ordinary runtime permission. Prepare the child phone for managed setup, provision the signed KidSuraksha package through Android's supported managed enrollment flow, let Android invoke the provisioning handlers, then complete normal KidSuraksha pairing and Notification Access setup.
 
 ## Developer test
-On a dedicated test device, after installing KidRaksha:
+On a dedicated test device, after installing KidSuraksha:
 ```bash
-adb shell dpm set-device-owner "com.kidraksha.child/.device.KidRakshaDeviceAdminReceiver"
+adb shell dpm set-device-owner "com.kidraksha.child/.device.KidSurakshaDeviceAdminReceiver"
 adb shell dumpsys device_policy
 ```
-Then test Settings > Apps > KidRaksha > Uninstall. The uninstall action should be blocked while Device Owner management is active.
+Then test Settings > Apps > KidSuraksha > Uninstall. The uninstall action should be blocked while Device Owner management is active.
 
 Use the supported device-policy testing/deprovisioning flow or factory reset for cleanup. Do not expose a consumer-facing clear-device-owner control.
 
