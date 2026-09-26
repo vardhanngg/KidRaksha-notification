@@ -1,4 +1,4 @@
-# KidRaksha Android release
+# KidSuraksha Android release
 
 ## Current build identity
 - applicationId: `com.kidraksha.child`
@@ -31,4 +31,4 @@ Never commit the keystore or password values. The release workflow reconstructs 
 6. Complete the Play declarations and review materials.
 7. Run the physical-device acceptance matrix.
 
-The current Google Play submission requirement for new apps and app updates is target API 36 or higher from August 31, 2026. KidRaksha targets API 36.
+The current Google Play submission requirement for new apps and app updates is target API 36 or higher from August 31, 2026. KidSuraksha targets API 36.
