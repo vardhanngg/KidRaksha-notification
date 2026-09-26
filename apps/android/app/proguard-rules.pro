@@ -1,3 +1,3 @@
 
--keep class com.littlewatch.child.** { *; }
+-keep class com.kidraksha.child.** { *; }
 -dontwarn org.json.**

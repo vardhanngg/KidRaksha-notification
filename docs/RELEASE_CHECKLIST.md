@@ -1,4 +1,4 @@
-# LittleWatch release checklist
+# KidRaksha release checklist
 
 ## Before production
 - Set a real `PUBLIC_WEB_ORIGIN` and production `DATABASE_URL`.
@@ -7,7 +7,7 @@
 - Create Razorpay webhook events needed by the subscription lifecycle and verify the webhook URL over HTTPS.
 - Replace the release Android API URL with the real HTTPS API origin.
 - Review the Google Play Data Safety form, privacy policy, monitoring-tool declaration, and store listing disclosures against the production data flows.
-- Verify the external `/delete-account` account-deletion URL is live and clearly identifies LittleWatch.
+- Verify the external `/delete-account` account-deletion URL is live and clearly identifies KidRaksha.
 - Configure TLS certificates and reverse-proxy headers.
 - Configure encrypted database backups and restore testing.
 - Build and sign the Android release with a production keystore.

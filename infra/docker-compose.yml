@@ -3,14 +3,14 @@ services:
   postgres:
     image: postgres:17
     environment:
-      POSTGRES_DB: littlewatch
-      POSTGRES_USER: littlewatch
+      POSTGRES_DB: kidraksha
+      POSTGRES_USER: kidraksha
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ../services/api/db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U littlewatch -d littlewatch"]
+      test: ["CMD-SHELL", "pg_isready -U kidraksha -d kidraksha"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -20,7 +20,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgres://littlewatch:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/littlewatch
+      DATABASE_URL: postgres://kidraksha:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/kidraksha
       PUBLIC_WEB_ORIGIN: https://${DOMAIN:?Set DOMAIN}
       DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?Set DATA_ENCRYPTION_KEY}
       PAIRING_CODE_SECRET: ${PAIRING_CODE_SECRET:?Set PAIRING_CODE_SECRET}

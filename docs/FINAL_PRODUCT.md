@@ -1,6 +1,6 @@
-# LittleWatch — Final-product SaaS architecture
+# KidRaksha — Final-product SaaS architecture
 
-LittleWatch is a notification-sharing parental-control SaaS, not a developer demo. Every stage is designed as one production product.
+KidRaksha is a notification-sharing parental-control SaaS, not a developer demo. Every stage is designed as one production product.
 
 ## Parent SaaS
 - Public marketing and pricing
@@ -20,7 +20,7 @@ LittleWatch is a notification-sharing parental-control SaaS, not a developer dem
 - Prominent notification-data disclosure before access
 - Android Notification Access settings handoff
 - Optional message-content sharing
-- Persistent LittleWatch status notification
+- Persistent KidRaksha status notification
 - Offline local queue with encrypted notification content
 - Retry and periodic synchronization
 - Secure device token in Android Keystore

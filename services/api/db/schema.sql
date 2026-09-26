@@ -42,10 +42,12 @@ CREATE TABLE IF NOT EXISTS devices (
   content_sharing_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   last_seen_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  revoked_at TIMESTAMPTZ
+  revoked_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_devices_parent ON devices(parent_id);
 CREATE INDEX IF NOT EXISTS idx_devices_seen ON devices(last_seen_at);
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS notifications (
   id BIGSERIAL PRIMARY KEY,

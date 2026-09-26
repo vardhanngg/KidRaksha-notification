@@ -49,13 +49,13 @@ Use only test keys until end-to-end payment verification is complete.
 Build with:
 
 ```text
--PLITTLEWATCH_API_URL=https://api.your-domain.example
+-PKIDRAKSHA_API_URL=https://api.your-domain.example
 ```
 
 or set the Gradle property:
 
 ```text
--PLITTLEWATCH_API_URL=https://api.your-domain.example
+-PKIDRAKSHA_API_URL=https://api.your-domain.example
 ```
 
 Do not ship the placeholder production API URL.

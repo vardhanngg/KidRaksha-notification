@@ -9,7 +9,7 @@ export default function DashboardPage(){
   useEffect(()=>{api("/dashboard/summary").then(setData).catch(console.error)},[]);
   useEffect(()=>{
     const es=new EventSource("/api/events/stream");
-    es.addEventListener("notification",()=>api("/dashboard/summary").then(setData).catch(()=>{}));
+    const refresh=()=>api("/dashboard/summary").then(setData).catch(()=>{}); es.addEventListener("notification",refresh); es.addEventListener("device.paired",refresh);
     return()=>es.close();
   },[]);
   if(!data) return <div>Loading dashboard…</div>;

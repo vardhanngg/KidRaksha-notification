@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata = {
-  title: "LittleWatch — Notification visibility for parents",
+  title: "KidRaksha — Notification visibility for parents",
   description: "A transparent parental notification-sharing service built around consent, security and control."
 };
 
