@@ -31,7 +31,7 @@ Repository release engineering is complete. The final launch gate is real-enviro
 - [ ] Android Notification Access enable/disable
 - [ ] Monitoring disclosure visible before enablement
 - [ ] Message-content opt-in/out
-- [ ] Persistent KidRaksha status notification
+- [ ] Persistent KidSuraksha status notification
 - [ ] Notification capture from multiple app types
 - [ ] Redacted/missing content behaves safely
 - [ ] Offline queue + reconnect
@@ -71,7 +71,7 @@ BASE_URL=https://app.example.com bash ops/release-smoke.sh
 The Android release workflow requires a release keystore and produces a signed `.aab` plus SHA-256 checksum. Never commit the keystore.
 
 ### Current policy facts to re-check at submission
-As of September 26, 2026, new Google Play apps and updates must target Android 16/API 36 or higher. KidRaksha targets API 36. Google Play's parental-monitoring policy requires the `isMonitoringTool` manifest declaration with `child_monitoring` for qualifying monitoring apps, and account-creating apps must provide in-app and web deletion paths. Re-check the live policy pages immediately before submission because Play policies can change.
+As of September 26, 2026, new Google Play apps and updates must target Android 16/API 36 or higher. KidSuraksha targets API 36. Google Play's parental-monitoring policy requires the `isMonitoringTool` manifest declaration with `child_monitoring` for qualifying monitoring apps, and account-creating apps must provide in-app and web deletion paths. Re-check the live policy pages immediately before submission because Play policies can change.
 
 ### Release decision
 Stage 10 is considered **release ready** only when the real-environment checklist above is completed and evidence is recorded by the service operator. Static checks alone are not a substitute for device, Play Console, payment-provider and production tests.
