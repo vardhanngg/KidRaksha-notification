@@ -92,7 +92,7 @@ class MainActivity : Activity() {
                 insets
             }
         }
-        val scroll = ScrollView(this).apply { setBackgroundColor(getColor(R.color.kd_bg)); addView(root, ScrollView.LayoutParams(-1, -2)) }
+        val scroll = ScrollView(this).apply { setBackgroundColor(getColor(R.color.kd_bg)); addView(root) }
         setContentView(scroll)
 
         root.addView(TextView(this).apply {
@@ -343,6 +343,20 @@ class MainActivity : Activity() {
             }.show()
     }
 
+    private fun showPrivacy() {
+        AlertDialog.Builder(this)
+            .setTitle("Privacy and data")
+            .setMessage(
+                "KidRaksha only shares notification data when you explicitly enable notification sharing. " +
+                "Message content is optional and stays off unless you enable it. " +
+                "The parent account can see data sent by this device while the device is paired. " +
+                "Pending unsent notifications are stored on this phone in encrypted form. " +
+                "You can pause sharing or unpair this device at any time."
+            )
+            .setPositiveButton("Close", null)
+            .show()
+    }
+
     private fun stepHeader(step:Int,label:String)=TextView(this).apply {
         text="SETUP  $step OF 4  ·  $label"
         textSize=11f; setTextColor(getColor(R.color.kd_accent)); setTypeface(typeface,android.graphics.Typeface.BOLD)
@@ -351,7 +365,7 @@ class MainActivity : Activity() {
 
     private fun title(text:String)=TextView(this).apply { this.text=text; textSize=31f; setTextColor(getColor(R.color.kd_text)); setTypeface(typeface,android.graphics.Typeface.BOLD); setPadding(0,dp(6),0,dp(8)) }
     private fun body(text:String)=TextView(this).apply { this.text=text; textSize=15f; setTextColor(getColor(R.color.kd_muted)); setLineSpacing(0f,1.35f) }
-    private fun infoCard(title:String,text:String)=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(dp(16),dp(14),dp(16),dp(14)); setBackgroundColor(getColor(R.color.kd_panel_alt)); addView(TextView(this@MainActivity).apply{text=title;textSize=14f;setTextColor(getColor(R.color.kd_text));setTypeface(typeface,android.graphics.Typeface.BOLD)}); addView(TextView(this@MainActivity).apply{text=textSizeNullSafe(text);textSize=12f;setTextColor(getColor(R.color.kd_muted));setPadding(0,dp(5),0,0)}) }
+    private fun infoCard(title:String,text:String)=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(dp(16),dp(14),dp(16),dp(14)); setBackgroundColor(getColor(R.color.kd_panel_alt)); addView(TextView(this@MainActivity).apply{text=title;textSize=14f;setTextColor(getColor(R.color.kd_text));setTypeface(typeface,android.graphics.Typeface.BOLD)}); addView(TextView(this@MainActivity).apply{this.text=textSizeNullSafe(text);textSize=12f;setTextColor(getColor(R.color.kd_muted));setPadding(0,dp(5),0,0)}) }
     private fun textSizeNullSafe(text:String)=text
     private fun statusCard(label:String,value:String,ok:Boolean)=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL; gravity=Gravity.CENTER_VERTICAL; setPadding(dp(16),dp(13),dp(16),dp(13)); setBackgroundColor(getColor(if(ok) R.color.kd_panel else R.color.kd_panel_alt)); val left=LinearLayout(this@MainActivity).apply{orientation=LinearLayout.VERTICAL;layoutParams=LinearLayout.LayoutParams(0,-2,1f)}; left.addView(TextView(this@MainActivity).apply{text=label;textSize=13f;setTextColor(getColor(R.color.kd_text));setTypeface(typeface,android.graphics.Typeface.BOLD)}); left.addView(TextView(this@MainActivity).apply{text=value;textSize=12f;setTextColor(getColor(if(ok) R.color.kd_green else R.color.kd_muted));setPadding(0,dp(4),0,0)}); addView(left); addView(TextView(this@MainActivity).apply{text=if(ok) "✓" else "•";textSize=20f;setTextColor(getColor(if(ok) R.color.kd_green else R.color.kd_muted))}) }
     private fun primaryButton(text:String,onClick:()->Unit)=Button(this).apply{setText(text);setTextColor(getColor(android.R.color.white));setBackgroundColor(getColor(R.color.kd_accent));setOnClickListener{onClick()}}
