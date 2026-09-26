@@ -87,3 +87,16 @@ grep -q 'pino' "$root/services/api/package.json" || { echo "Missing structured l
 if grep -R -nE 'lw_csrf|lw_session' "$root" --exclude-dir=.git --exclude='check-product.sh' --exclude='check-web-ui.sh' >/tmp/kidraksha-legacy-cookie.txt 2>/dev/null; then
   echo "Legacy LittleWatch cookie names remain:"; cat /tmp/kidraksha-legacy-cookie.txt; exit 1;
 fi
+
+# Stage 7 realtime checks
+for f in \
+  "$root/services/api/src/events.js" \
+  "$root/services/api/db/migrations/007_realtime_events.sql" \
+  "$root/services/api/test/events.test.js" \
+  "$root/apps/web/lib/realtime/client.tsx"; do
+  test -f "$f" || { echo "Missing Stage 7 file: $f"; exit 1; }
+done
+grep -q 'realtimeEventReplay' "$root/services/api/src/server.js" || { echo "Missing realtime feature metadata."; exit 1; }
+grep -q 'replayEvents' "$root/services/api/src/server.js" || { echo "Missing SSE replay integration."; exit 1; }
+grep -q 'Last-Event-ID' "$root/docs/API.md" || { echo "Missing realtime Last-Event-ID contract."; exit 1; }
+grep -q 'proxy_buffering off' "$root/infra/nginx.conf" || { echo "Missing SSE proxy buffering protection."; exit 1; }

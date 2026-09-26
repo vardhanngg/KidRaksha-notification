@@ -57,3 +57,13 @@
 - replaced browser dialogs with accessible in-app confirmation dialogs and toasts
 - added route-level loading/error states and mobile navigation
 - added web UI regression checker and accessibility-focused styling
+
+
+## Stage 7 — Realtime experience
+- Added a durable, tenant-scoped realtime event log with monotonic IDs.
+- Hardened SSE with `Last-Event-ID` replay, session cursor fallback, replay buffering, bounded history and explicit resync signals.
+- Added 20-second keep-alives, no-cache/no-buffering headers, connection caps and stream rate limiting.
+- Replaced per-page EventSource connections with one shared realtime provider in the parent console.
+- Added live/reconnecting/offline connection status and reconnect/resync reconciliation hooks.
+- Coalesced bulk notification mutations into one realtime event each to avoid event storms.
+- Added realtime framing/replay/buffering/cap tests.

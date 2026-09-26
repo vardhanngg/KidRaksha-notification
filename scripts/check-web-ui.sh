@@ -33,4 +33,10 @@ for f in "${required[@]}"; do
     *"settings/page.tsx"*) grep -q 'ConfirmDialog' "$f" || { echo "Settings UI is missing an accessible deletion dialog."; exit 1; };;
   esac
 done
+if grep -R -n 'new EventSource' "$web/app" "$web/components" --include='*.tsx' --include='*.ts' >/tmp/kidraksha-page-sse.txt 2>/dev/null; then
+  echo "Page/component-owned EventSource connections remain; realtime must be centralized:"
+  cat /tmp/kidraksha-page-sse.txt
+  exit 1
+fi
+grep -q 'RealtimeProvider' "$web/lib/realtime/client.tsx" || { echo "Missing shared realtime provider."; exit 1; }
 echo "KidRaksha web UI check: PASS"

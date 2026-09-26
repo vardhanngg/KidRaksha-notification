@@ -129,6 +129,29 @@ Expired trials no longer grant device or notification-ingestion entitlements. Br
 
 Notification ingestion requires both valid device authentication and an active parent entitlement. The upload endpoint accepts at most 50 notifications per request and enforces the existing server body limit.
 
+## Realtime event stream
+
+`GET /v1/events/stream`
+
+The parent console uses an authenticated Server-Sent Events stream for one-way server-to-browser updates. SSE is appropriate here because the browser only needs to receive events; MDN documents that `EventSource` automatically reconnects when the connection closes and supports event `id`, `retry` and `Last-Event-ID` state. citeturn821241search0turn821241search2
+
+The stream:
+
+- requires an authenticated parent session cookie;
+- emits named events with a monotonic database-backed `id`;
+- accepts the browser `Last-Event-ID` header automatically and also supports `?since=<id>` for a full-page reload/session cursor;
+- replays retained parent-scoped events in ascending order;
+- buffers new live events while a reconnect replay is in progress so event order cannot be inverted;
+- emits `resync.required` when retained history cannot satisfy the cursor or the replay limit is exceeded; clients must then refresh authoritative REST data;
+- emits a keep-alive comment every 20 seconds;
+- limits each parent to 5 concurrent realtime connections.
+
+Realtime events are delivery notifications only. The REST API and PostgreSQL tables remain the source of truth. Event history is retained for 7 days and is not used as the notification data-retention policy.
+
+Current event names include `notification`, `notification.read`, `notification.unread`, `notifications.read-all`, `notifications.bulk-read`, `notification.deleted`, `notifications.bulk-deleted`, `device.paired`, `device.updated`, `device.revoked`, and `device.sync.updated`. Event payloads deliberately exclude decrypted notification title/body content.
+
+Nginx must disable proxy buffering for this endpoint and allow a long read timeout. Node's HTTP server keeps the stream open while periodic keep-alive bytes prevent intermediary idle timeouts. citeturn821241search1turn821241search5
+
 ## Errors
 
 Errors have a stable minimum shape:

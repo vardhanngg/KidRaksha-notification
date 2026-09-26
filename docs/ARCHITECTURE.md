@@ -65,3 +65,27 @@ A periodic job calls the database retention routine. Notification content older 
 ## Stage 4 synchronization
 
 The Android client uses WorkManager rather than custom repeating alarms/receivers for persistent network synchronization. Immediate sync is unique work with a connected-network constraint; periodic reconciliation is a 15-minute minimum cadence and remains subject to OS scheduling/Doze. The server enforces `(device_id, client_notification_id)` idempotency.
+
+
+## Stage 7 realtime path
+
+```text
+Postgres mutation
+     │
+     ├── authoritative table
+     └── realtime_events row
+              │
+              ▼
+       parent-scoped SSE
+              │
+              ▼
+     RealtimeProvider (web)
+        │       │
+        │       └── reconnect / resync
+        ▼
+ dashboard / inbox / devices / onboarding
+        │
+        └── REST reconciliation
+```
+
+The event log provides recovery, not primary state. A browser can miss an event, receive it more than once after reconnect, or be forced to resync; pages therefore always treat REST responses as authoritative.

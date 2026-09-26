@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import PageHeader from "../../../components/PageHeader";
 import { api } from "../../../lib/api";
+import { useRealtimeRefresh } from "../../../lib/realtime/client";
 import { ConfirmDialog, EmptyState, Icon, Toast, StatusDot } from "../../../components/ui/UI";
 
 function formatDate(value:string|null|undefined){return value?new Date(value).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"Not yet"}
@@ -13,7 +14,7 @@ export default function DevicesPage(){
   const [devices,setDevices]=useState<any[]>([]); const [includeRevoked,setIncludeRevoked]=useState(false); const [loading,setLoading]=useState(true); const [error,setError]=useState(""); const [renaming,setRenaming]=useState<any>(null); const [name,setName]=useState(""); const [saving,setSaving]=useState(false); const [revokeId,setRevokeId]=useState<string|null>(null); const [toast,setToast]=useState<{message:string;tone:"success"|"error"|"info"}|null>(null);
   const load=useCallback(async()=>{setLoading(true);setError("");try{const r=await api(`/devices?includeRevoked=${includeRevoked?"1":"0"}`);setDevices(r.devices||[])}catch(e:any){setError(e.message||"Could not load devices.")}finally{setLoading(false)}},[includeRevoked]);
   useEffect(()=>{load()},[load]);
-  useEffect(()=>{const es=new EventSource("/api/events/stream");const refresh=()=>load();["device.paired","device.updated","device.revoked"].forEach(n=>es.addEventListener(n,refresh));return()=>es.close()},[load]);
+  useRealtimeRefresh(["device.paired","device.updated","device.revoked","device.sync.updated"], load);
   async function saveRename(){if(!renaming||!name.trim())return;setSaving(true);try{const r=await api(`/devices/${renaming.id}`,{method:"PATCH",body:JSON.stringify({name:name.trim()})});setDevices(v=>v.map(d=>d.id===renaming.id?r.device:{...d}));setRenaming(null);setToast({message:"Device name updated.",tone:"success"})}catch(e:any){setToast({message:e.message||"Could not rename device.",tone:"error"})}finally{setSaving(false)}}
   async function revoke(){if(!revokeId)return;setSaving(true);try{await api(`/devices/${revokeId}/revoke`,{method:"POST"});await load();setToast({message:"Device revoked. It can no longer upload notifications.",tone:"success"})}catch(e:any){setToast({message:e.message||"Could not revoke device.",tone:"error"})}finally{setSaving(false);setRevokeId(null)}}
   const active=devices.filter(d=>!d.revoked_at); const online=active.filter(d=>d.status==="online").length; const attention=active.filter(d=>d.sync_status==="error"||d.status==="offline").length;

@@ -10,7 +10,7 @@ import { z } from "zod";
 import { pool, tx } from "./db.js";
 import { createSession, getSession, deleteSession, cookieOptions, publicCsrfCookieOptions, COOKIE_NAME, CSRF_COOKIE, passwordHash, passwordMatches } from "./auth.js";
 import { randomToken, sha256, encryptText, decryptText } from "./crypto.js";
-import { addClient, broadcast } from "./events.js";
+import { addClient, clientCount, finishReplay, publishEvent, replayEvents, streamReady } from "./events.js";
 import logger from "./logger.js";
 import { decodeCursor, decodeNotificationCursor, encodeCursor, notificationCursorFromRow } from "./pagination.js";
 import { PLANS, planFor, planFromProviderId, hmacSha256, createRazorpaySubscription } from "./billing.js";
@@ -21,6 +21,9 @@ const port = Number(process.env.PORT || 4000);
 const API_VERSION = "1";
 const API_CONTRACT_VERSION = "5";
 const DEVICE_ONLINE_WINDOW_MS = 30 * 60 * 1000;
+const REALTIME_EVENT_RETENTION_DAYS = 7;
+const REALTIME_MAX_SINCE_ID_DIGITS = 19;
+const MAX_POSTGRES_BIGINT = 9223372036854775807n;
 
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
@@ -66,6 +69,7 @@ const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHea
 const pairingLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
 const deviceLimiter = rateLimit({ windowMs: 60 * 1000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false });
 const parentApiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 180, standardHeaders: "draft-8", legacyHeaders: false });
+const eventStreamLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 30, standardHeaders: "draft-8", legacyHeaders: false });
 
 function validateRuntimeConfig() {
   if (process.env.NODE_ENV !== "production") return;
@@ -108,8 +112,11 @@ app.get("/v1/meta", (_req, res) => {
       notificationBulkActions: true,
       deviceLifecycle: true,
       auditLog: true,
-      structuredRequestIds: true
+      structuredRequestIds: true,
+      realtimeEventReplay: true,
+      realtimeConnectionCaps: true
     },
+    realtime: { maxConnectionsPerParent: 5, maxReplayEvents: 200, retentionDays: REALTIME_EVENT_RETENTION_DAYS },
     limits: { notificationPageSize: 100, notificationBulkSize: 100, notificationUploadBatchSize: 50 }
   });
 });
@@ -249,7 +256,7 @@ app.post("/v1/notifications/:id/read", parentApiLimiter, requireParent, requireC
       [id, req.auth.parent_id]
     );
     if (!result.rowCount) return sendError(res, req, 404, "Notification not found.", "notification_not_found");
-    broadcast(req.auth.parent_id, "notification.read", { id: String(result.rows[0].id), readAt: result.rows[0].read_at });
+    await publishEvent(pool, req.auth.parent_id, "notification.read", { id: String(result.rows[0].id), readAt: result.rows[0].read_at, changedAt: result.rows[0].read_at });
     res.json({ ok: true, id: String(result.rows[0].id), readAt: result.rows[0].read_at });
   } catch (err) { next(err); }
 });
@@ -263,7 +270,7 @@ app.post("/v1/notifications/:id/unread", parentApiLimiter, requireParent, requir
       [id, req.auth.parent_id]
     );
     if (!result.rowCount) return sendError(res, req, 404, "Notification not found.", "notification_not_found");
-    broadcast(req.auth.parent_id, "notification.unread", { id: String(result.rows[0].id) });
+    await publishEvent(pool, req.auth.parent_id, "notification.unread", { id: String(result.rows[0].id), changedAt: new Date().toISOString() });
     res.json({ ok: true, id: String(result.rows[0].id), readAt: null });
   } catch (err) { next(err); }
 });
@@ -278,7 +285,7 @@ app.post("/v1/notifications/bulk-read", parentApiLimiter, requireParent, require
       [req.auth.parent_id, ids]
     );
     await audit(req.auth.parent_id, null, "notifications_bulk_read", { requested: ids.length, updated: result.rowCount });
-    for (const row of result.rows) broadcast(req.auth.parent_id, "notification.read", { id: String(row.id), readAt: row.read_at });
+    await publishEvent(pool, req.auth.parent_id, "notifications.bulk-read", { ids: result.rows.map(row => String(row.id)), count: result.rowCount, changedAt: new Date().toISOString() });
     res.json({ ok: true, count: result.rowCount });
   } catch (err) { next(err); }
 });
@@ -291,7 +298,7 @@ app.post("/v1/notifications/read-all", parentApiLimiter, requireParent, requireC
       [req.auth.parent_id]
     );
     await audit(req.auth.parent_id, null, "notifications_read_all", { count: result.rowCount });
-    broadcast(req.auth.parent_id, "notifications.read-all", { count: result.rowCount });
+    await publishEvent(pool, req.auth.parent_id, "notifications.read-all", { count: result.rowCount, changedAt: new Date().toISOString() });
     res.json({ ok: true, count: result.rowCount });
   } catch (err) { next(err); }
 });
@@ -306,7 +313,7 @@ app.delete("/v1/notifications/:id", parentApiLimiter, requireParent, requireCsrf
     );
     if (!result.rowCount) return sendError(res, req, 404, "Notification not found.", "notification_not_found");
     await audit(req.auth.parent_id, null, "notification_deleted", { notificationId: String(result.rows[0].id) });
-    broadcast(req.auth.parent_id, "notification.deleted", { id: String(result.rows[0].id) });
+    await publishEvent(pool, req.auth.parent_id, "notification.deleted", { id: String(result.rows[0].id), changedAt: new Date().toISOString() });
     res.json({ ok: true, id: String(result.rows[0].id) });
   } catch (err) { next(err); }
 });
@@ -321,7 +328,7 @@ app.post("/v1/notifications/bulk-delete", parentApiLimiter, requireParent, requi
       [req.auth.parent_id, ids]
     );
     await audit(req.auth.parent_id, null, "notifications_bulk_deleted", { requested: ids.length, deleted: result.rowCount });
-    for (const row of result.rows) broadcast(req.auth.parent_id, "notification.deleted", { id: String(row.id) });
+    await publishEvent(pool, req.auth.parent_id, "notifications.bulk-deleted", { ids: result.rows.map(row => String(row.id)), count: result.rowCount, changedAt: new Date().toISOString() });
     res.json({ ok: true, count: result.rowCount });
   } catch (err) { next(err); }
 });
@@ -425,7 +432,7 @@ app.patch("/v1/devices/:id", parentApiLimiter, requireParent, requireCsrf, async
     if (!result.rowCount) return sendError(res, req, 404, "Device not found.", "device_not_found");
     await audit(req.auth.parent_id, req.params.id, "device_updated", { changedFields: ["name"] });
     const device = serializeDevice(result.rows[0]);
-    broadcast(req.auth.parent_id, "device.updated", { device });
+    await publishEvent(pool, req.auth.parent_id, "device.updated", { device, changedAt: device.updated_at });
     res.json({ ok: true, device });
   } catch (err) { next(err); }
 });
@@ -441,7 +448,7 @@ app.post("/v1/devices/:id/rename", parentApiLimiter, requireParent, requireCsrf,
     );
     if (!result.rowCount) return sendError(res, req, 404, "Device not found.", "device_not_found");
     await audit(req.auth.parent_id, req.params.id, "device_renamed", { changedFields: ["name"] });
-    broadcast(req.auth.parent_id, "device.updated", { deviceId: req.params.id, name });
+    await publishEvent(pool, req.auth.parent_id, "device.updated", { deviceId: req.params.id, name, changedAt: new Date().toISOString() });
     res.json({ ok: true, device: result.rows[0] });
   } catch (err) { next(err); }
 });
@@ -468,7 +475,7 @@ app.post("/v1/devices/:id/revoke", parentApiLimiter, requireParent, requireCsrf,
     );
     if (!result.rowCount) return sendError(res, req, 404, "Device not found.", "device_not_found");
     await audit(req.auth.parent_id, id, "device_revoked", {});
-    broadcast(req.auth.parent_id, "device.revoked", { deviceId: id });
+    await publishEvent(pool, req.auth.parent_id, "device.revoked", { deviceId: id, changedAt: new Date().toISOString() });
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -482,7 +489,7 @@ app.delete("/v1/devices/:id", parentApiLimiter, requireParent, requireCsrf, asyn
     );
     if (!result.rowCount) return sendError(res, req, 404, "Device not found.", "device_not_found");
     await audit(req.auth.parent_id, req.params.id, "device_revoked", { method: "delete" });
-    broadcast(req.auth.parent_id, "device.revoked", { deviceId: req.params.id });
+    await publishEvent(pool, req.auth.parent_id, "device.revoked", { deviceId: req.params.id, changedAt: new Date().toISOString() });
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -671,20 +678,53 @@ app.post("/v1/billing/subscription", parentApiLimiter, requireParent, requireCsr
   }
 });
 
-app.get("/v1/events/stream", requireParent, async (req, res) => {
-  res.status(200).set({
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache, no-transform",
-    "Connection": "keep-alive",
-    "X-Accel-Buffering": "no"
-  });
-  res.flushHeaders?.();
-  res.write(`event: ready\ndata: ${JSON.stringify({ at: new Date().toISOString() })}\n\n`);
-  const keepAlive = setInterval(() => {
-    try { res.write(`: keep-alive ${Date.now()}\n\n`); } catch {}
-  }, 25_000);
-  res.on("close", () => clearInterval(keepAlive));
-  addClient(req.auth.parent_id, res);
+app.get("/v1/events/stream", eventStreamLimiter, requireParent, async (req, res, next) => {
+  try {
+    const rawLastId = String(req.header("last-event-id") || req.query.since || "").trim();
+    if (rawLastId) {
+      if (!/^\d+$/.test(rawLastId) || rawLastId.length > REALTIME_MAX_SINCE_ID_DIGITS || BigInt(rawLastId) > MAX_POSTGRES_BIGINT) {
+        return sendError(res, req, 400, "Invalid realtime cursor.", "invalid_realtime_cursor");
+      }
+    }
+
+    if (clientCount(req.auth.parent_id) >= 5) {
+      res.setHeader("Retry-After", "30");
+      return sendError(res, req, 429, "Too many realtime connections for this account. Close an older dashboard tab and try again.", "realtime_connection_limit");
+    }
+
+    res.status(200).set({
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform, no-store",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no"
+    });
+    res.flushHeaders?.();
+
+    const registration = addClient(req.auth.parent_id, res, { buffering: true });
+    const cleanup = registration.cleanup;
+
+    try {
+      const snapshotResult = rawLastId
+        ? await pool.query("SELECT MAX(id) AS max_id FROM realtime_events WHERE parent_id=$1", [req.auth.parent_id])
+        : { rows: [{ max_id: null }] };
+      const snapshotMaxId = snapshotResult.rows[0]?.max_id == null ? null : String(snapshotResult.rows[0].max_id);
+      streamReady(res);
+      if (rawLastId) await replayEvents(pool, req.auth.parent_id, rawLastId, res, snapshotMaxId);
+      finishReplay(registration.client, rawLastId ? snapshotMaxId : null);
+    } catch (err) {
+      registration.client.buffer.length = 0;
+      registration.client.buffering = false;
+      cleanup();
+      throw err;
+    }
+
+    const keepAlive = setInterval(() => {
+      if (res.writableEnded || res.destroyed) return cleanup();
+      try { res.write(`: keep-alive ${Date.now()}\n\n`); } catch { cleanup(); }
+    }, 20_000);
+    res.on("close", () => { clearInterval(keepAlive); cleanup(); });
+    res.setTimeout?.(0);
+  } catch (err) { next(err); }
 });
 
 app.post("/v1/device/pair", pairingLimiter, async (req, res, next) => {
@@ -738,7 +778,7 @@ app.post("/v1/device/pair", pairingLimiter, async (req, res, next) => {
       return { deviceId, token, parentId, deviceName: input.name, appVersion: input.appVersion || null };
     });
 
-    broadcast(result.parentId, "device.paired", {
+    await publishEvent(pool, result.parentId, "device.paired", {
       deviceId: result.deviceId,
       deviceName: result.deviceName,
       platform: "android",
@@ -791,7 +831,27 @@ app.post("/v1/device/heartbeat", deviceLimiter, requireDevice, async (req, res, 
       [input.appVersion || null, input.sharingEnabled, input.contentSharingEnabled, input.pendingCount, input.syncFailures, input.syncError, input.syncDroppedCount, req.device.id]
     );
     if (!result.rowCount) return sendError(res, req, 401, "Device is not authorized.", "device_not_authorized");
-    res.json({ ok: true, device: result.rows[0], serverTime: new Date().toISOString() });
+    const nextDevice = result.rows[0];
+    const syncChanged = [
+      "sharing_enabled", "content_sharing_enabled", "pending_count",
+      "sync_failures", "last_sync_error", "sync_dropped_count"
+    ].some(key => String(nextDevice[key] ?? "") !== String(req.device[key] ?? ""));
+    if (syncChanged) {
+      await publishEvent(pool, req.device.parent_id, "device.sync.updated", {
+        deviceId: nextDevice.id,
+        name: nextDevice.name,
+        sharingEnabled: nextDevice.sharing_enabled,
+        contentSharingEnabled: nextDevice.content_sharing_enabled,
+        pendingCount: nextDevice.pending_count,
+        syncFailures: nextDevice.sync_failures,
+        lastSyncError: nextDevice.last_sync_error,
+        syncDroppedCount: nextDevice.sync_dropped_count,
+        lastSyncAt: nextDevice.last_sync_at,
+        lastSeenAt: nextDevice.last_seen_at,
+        changedAt: nextDevice.last_sync_at
+      });
+    }
+    res.json({ ok: true, device: nextDevice, serverTime: new Date().toISOString() });
   } catch (err) { next(err); }
 });
 
@@ -881,13 +941,14 @@ app.post("/v1/device/notifications", deviceLimiter, requireDevice, requireDevice
     if (rejection) return sendError(res, req, rejection.status, rejection.message, rejection.code || "device_request_rejected");
 
     for (const n of inserted) {
-      broadcast(parentId, "notification", {
-        id: n.id,
+      await publishEvent(pool, parentId, "notification", {
+        id: String(n.id),
         appName: n.app_name,
         packageName: n.package_name,
         notificationType: n.notification_type,
         contentState: n.content_state,
         postedAt: n.posted_at,
+        receivedAt: n.received_at,
         deviceId: req.device.id,
         deviceName,
         title: null,
@@ -1313,6 +1374,7 @@ setInterval(async () => {
     await pool.query("SELECT purge_expired_notifications()");
     await pool.query("DELETE FROM sessions WHERE expires_at<now()");
     await pool.query("DELETE FROM pairing_codes WHERE used_at IS NOT NULL OR expires_at<now()-interval '1 day'");
+    await pool.query(`DELETE FROM realtime_events WHERE created_at < now() - make_interval(days => ${REALTIME_EVENT_RETENTION_DAYS})`);
     await pool.query("UPDATE devices SET sharing_enabled=false WHERE revoked_at IS NOT NULL");
   } catch (err) {
     logger.error({ err }, "maintenance_failed");

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "../../../components/PageHeader";
 import { api } from "../../../lib/api";
+import { useRealtimeRefresh } from "../../../lib/realtime/client";
 import { EmptyState, Icon, Skeleton, Toast, ConfirmDialog } from "../../../components/ui/UI";
 
 const types=["","message","email","call","media","alarm","reminder","event","system","progress","service","other"];
@@ -16,7 +17,7 @@ export default function NotificationsPage(){
   useEffect(()=>{api("/devices").then(r=>setDevices(r.devices||[])).catch(()=>{})},[]);
   useEffect(()=>{load()},[query,unread,deviceId,type]);
   useEffect(()=>{const id=params.get("selected");if(!id)return;const hit=items.find(n=>String(n.id)===id);if(hit){setSelected(hit);return}let active=true;api(`/notifications/${encodeURIComponent(id)}`).then(r=>{if(active&&r.notification)setSelected(r.notification)}).catch(()=>{});return()=>{active=false}},[params,items]);
-  useEffect(()=>{const es=new EventSource("/api/events/stream");const refresh=()=>load();["notification","notification.read","notification.unread","notifications.read-all","notification.deleted"].forEach(n=>es.addEventListener(n,refresh));return()=>es.close()},[load]);
+  useRealtimeRefresh(["notification","notification.read","notification.unread","notifications.read-all","notifications.bulk-read","notification.deleted","notifications.bulk-deleted"], load);
   async function markRead(id:string){try{const r=await api(`/notifications/${id}/read`,{method:"POST"});setItems(v=>v.map(n=>n.id===id?{...n,read_at:r.readAt}:n));setSelected((s:any)=>s?.id===id?{...s,read_at:r.readAt}:s)}catch(e:any){setToast({message:e.message||"Could not update notification.",tone:"error"})}}
   async function toggle(id:string,read:boolean){try{await api(`/notifications/${id}/${read?"unread":"read"}`,{method:"POST"});const at=read?null:new Date().toISOString();setItems(v=>v.map(n=>n.id===id?{...n,read_at:at}:n));setSelected((s:any)=>s?.id===id?{...s,read_at:at}:s)}catch(e:any){setToast({message:e.message||"Could not update notification.",tone:"error"})}}
   async function confirmDelete(){setBusy(true);try{if(confirm==="delete-one"&&selected){await api(`/notifications/${selected.id}`,{method:"DELETE"});setItems(v=>v.filter(n=>n.id!==selected.id));setSelected(null);setToast({message:"Notification deleted.",tone:"success"})}if(confirm==="delete-selected"){const ids=[...checked];if(ids.length){await api("/notifications/bulk-delete",{method:"POST",body:JSON.stringify({ids})});setItems(v=>v.filter(n=>!checked.has(n.id)));setChecked(new Set());setSelected((s:any)=>s&&checked.has(s.id)?null:s);setToast({message:`${ids.length} notification${ids.length===1?"":"s"} deleted.`,tone:"success"})}}}catch(e:any){setToast({message:e.message||"Could not delete notifications.",tone:"error"})}finally{setBusy(false);setConfirm(null)}}
