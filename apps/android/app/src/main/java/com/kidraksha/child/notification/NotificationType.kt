@@ -1,5 +1,8 @@
 package com.kidraksha.child.notification
 
+import android.app.Notification
+import java.util.Locale
+
 object NotificationType {
     const val MESSAGE = "message"
     const val EMAIL = "email"
@@ -13,17 +16,32 @@ object NotificationType {
     const val SERVICE = "service"
     const val OTHER = "other"
 
-    fun fromCategory(category: String?): String = when (category) {
-        "msg", "social" -> MESSAGE
-        "email" -> EMAIL
-        "call", "missed_call" -> CALL
-        "transport" -> MEDIA
-        "alarm" -> ALARM
-        "reminder" -> REMINDER
-        "event" -> EVENT
-        "progress" -> PROGRESS
-        "service" -> SERVICE
-        "system", "sys" -> SYSTEM
-        else -> OTHER
+    fun fromCategory(category: String?): String {
+        return when (category?.trim()?.lowercase(Locale.ROOT)) {
+            Notification.CATEGORY_MESSAGE,
+            Notification.CATEGORY_SOCIAL -> MESSAGE
+
+            Notification.CATEGORY_EMAIL -> EMAIL
+
+            Notification.CATEGORY_CALL,
+            Notification.CATEGORY_MISSED_CALL -> CALL
+
+            Notification.CATEGORY_TRANSPORT -> MEDIA
+
+            Notification.CATEGORY_ALARM -> ALARM
+
+            Notification.CATEGORY_REMINDER -> REMINDER
+
+            Notification.CATEGORY_EVENT -> EVENT
+
+            Notification.CATEGORY_PROGRESS -> PROGRESS
+
+            Notification.CATEGORY_SERVICE -> SERVICE
+
+            Notification.CATEGORY_SYSTEM,
+            Notification.CATEGORY_STATUS -> SYSTEM
+
+            else -> OTHER
+        }
     }
 }
