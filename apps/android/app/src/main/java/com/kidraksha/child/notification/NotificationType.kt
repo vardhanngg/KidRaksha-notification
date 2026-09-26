@@ -23,7 +23,7 @@ object NotificationType {
         "event" -> EVENT
         "progress" -> PROGRESS
         "service" -> SERVICE
-        "system" -> SYSTEM
+        "system", "sys" -> SYSTEM
         else -> OTHER
     }
 }
