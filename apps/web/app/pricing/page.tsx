@@ -28,7 +28,7 @@ export default function Pricing() {
       <div className="container">
         <div style={{ padding: "30px 0" }}>
           <Link href="/" style={{ color: "#fff", display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13 }}>
-            <Icon name="arrowLeft" size={15} /> KidRaksha
+            <Icon name="arrowLeft" size={15} /> KidSuraksha
           </Link>
         </div>
 
@@ -69,13 +69,13 @@ export default function Pricing() {
           <div className="eyebrow">Billing transparency</div>
           <h3 style={{ fontSize: 18 }}>Weekly and monthly only.</h3>
           <p style={{ color: "#aeb6c3" }}>
-            KidRaksha currently offers a 7-day trial followed by either ₹79 billed weekly or ₹199 billed monthly. There is no annual subscription plan.
+            KidSuraksha currently offers a 7-day trial followed by either ₹79 billed weekly or ₹199 billed monthly. There is no annual subscription plan.
           </p>
         </div>
 
         <footer className="footer">
           <div className="container between">
-            <span>© 2026 KidRaksha</span>
+            <span>© 2026 KidSuraksha</span>
             <div className="row">
               <Link href="/privacy">Privacy</Link>
               <Link href="/terms">Terms</Link>
