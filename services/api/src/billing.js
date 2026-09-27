@@ -27,7 +27,21 @@ export function planFromProviderId(id) {
   return null;
 }
 
-export async function createRazorpaySubscription({ planId, totalCount = 120 }) {
+export const SUBSCRIPTION_TOTAL_COUNTS = {
+  weekly: 520,
+  monthly: 120
+};
+
+export function subscriptionTotalCountFor(planKey) {
+  const totalCount = SUBSCRIPTION_TOTAL_COUNTS[planKey];
+  if (!totalCount) throw new Error(`Unsupported subscription plan: ${planKey}`);
+  return totalCount;
+}
+
+export async function createRazorpaySubscription({ planId, totalCount }) {
+  if (!Number.isSafeInteger(totalCount) || totalCount < 1 || totalCount > 520) {
+    throw new Error("Razorpay subscription total_count must be an integer from 1 to 520");
+  }
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
     throw new Error("Razorpay is not configured");
   }
