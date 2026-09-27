@@ -10,7 +10,7 @@
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.KidRaksha.Starting">
+        android:theme="@style/Theme.KidSuraksha.Starting">
 
         <meta-data
             android:name="isMonitoringTool"
@@ -32,7 +32,7 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name=".device.KidRakshaDeviceAdminReceiver" android:exported="true" android:label="@string/device_admin_label" android:description="@string/device_admin_description" android:permission="android.permission.BIND_DEVICE_ADMIN">
+        <receiver android:name=".device.KidSurakshaDeviceAdminReceiver" android:exported="true" android:label="@string/device_admin_label" android:description="@string/device_admin_description" android:permission="android.permission.BIND_DEVICE_ADMIN">
             <meta-data android:name="android.app.device_admin" android:resource="@xml/device_admin" />
             <intent-filter><action android:name="android.app.action.DEVICE_ADMIN_ENABLED" /></intent-filter>
         </receiver>

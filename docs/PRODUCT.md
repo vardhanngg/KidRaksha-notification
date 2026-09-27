@@ -3,7 +3,7 @@
 
 ## Positioning
 
-KidRaksha is a SaaS parental-control product focused on notification visibility. It is not marketed as a spy or secret-surveillance tool.
+KidSuraksha is a SaaS parental-control product focused on notification visibility. It is not marketed as a spy or secret-surveillance tool.
 
 ## Core journey
 
@@ -28,10 +28,10 @@ Install
   → Explain what will be shared
   → Pair
   → Open Android Notification Access
-  → User enables KidRaksha
+  → User enables KidSuraksha
   → Choose whether message content is shared
   → Sharing starts
-  → Persistent KidRaksha notification remains visible
+  → Persistent KidSuraksha notification remains visible
 ```
 
 ## SaaS areas

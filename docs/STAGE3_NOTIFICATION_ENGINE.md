@@ -2,7 +2,7 @@
 
 ## Goal
 
-Turn Android notification capture into a reliable, privacy-aware ingestion pipeline suitable for the KidRaksha SaaS product.
+Turn Android notification capture into a reliable, privacy-aware ingestion pipeline suitable for the KidSuraksha SaaS product.
 
 ## Android
 
@@ -37,7 +37,7 @@ The API enforces the same content-sharing policy server-side. When content shari
 
 ## Android 15+ behavior
 
-Android 15 can redact one-time passcodes from untrusted notification listeners and can hide notification content during screen sharing. KidRaksha does not attempt to bypass those platform protections; such fields are represented as unavailable when Android does not expose readable content.
+Android 15 can redact one-time passcodes from untrusted notification listeners and can hide notification content during screen sharing. KidSuraksha does not attempt to bypass those platform protections; such fields are represented as unavailable when Android does not expose readable content.
 
 ## Privacy
 

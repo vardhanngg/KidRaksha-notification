@@ -23,7 +23,7 @@ This is a **pre-filled engineering draft**, not a substitute for completing the 
 - Advertising ID
 
 ## Sharing statement
-Notification data is synchronized to KidRaksha infrastructure and shown to the authorized parent account. KidRaksha does not sell notification content or use it for advertising. Payment-provider data is handled through the subscription integration.
+Notification data is synchronized to KidSuraksha infrastructure and shown to the authorized parent account. KidSuraksha does not sell notification content or use it for advertising. Payment-provider data is handled through the subscription integration.
 
 ## Security
 HTTPS is required in production. Notification content is encrypted at rest. Device tokens are stored as hashes server-side. Android queue contents use local encryption and backup exclusion.

@@ -1,6 +1,6 @@
 # Google Play review access
 
-Before submitting KidRaksha, prepare reviewer access that does not require a private employee account or a payment method.
+Before submitting KidSuraksha, prepare reviewer access that does not require a private employee account or a payment method.
 
 ## Recommended reviewer path
 1. Open the public website.

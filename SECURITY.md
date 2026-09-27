@@ -8,4 +8,4 @@ Do not include real customer notification content, credentials, production token
 
 ## Supported security expectations
 
-KidRaksha treats parent authentication/session data, device credentials, notification content, and billing identifiers as sensitive. Security fixes may require immediate dependency upgrades or temporary service restrictions.
+KidSuraksha treats parent authentication/session data, device credentials, notification content, and billing identifiers as sensitive. Security fixes may require immediate dependency upgrades or temporary service restrictions.

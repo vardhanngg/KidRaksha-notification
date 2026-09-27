@@ -1,9 +1,9 @@
 
 <resources>
-    <string name="app_name">KidRaksha</string>
-    <string name="channel_status">KidRaksha status</string>
+    <string name="app_name">KidSuraksha</string>
+    <string name="channel_status">KidSuraksha status</string>
     <string name="status_title">Notification sharing is on</string>
-    <string name="status_text">KidRaksha is visibly sharing notifications from this device.</string>
-    <string name="device_admin_label">KidRaksha device protection</string>
-    <string name="device_admin_description">Blocks user uninstall while KidRaksha is the managed device owner.</string>
+    <string name="status_text">KidSuraksha is visibly sharing notifications from this device.</string>
+    <string name="device_admin_label">KidSuraksha device protection</string>
+    <string name="device_admin_description">Blocks user uninstall while KidSuraksha is the managed device owner.</string>
 </resources>

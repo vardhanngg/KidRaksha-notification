@@ -1,6 +1,6 @@
 # Stage 9 — Operations & Deployment
 
-Stage 9 turns the KidRaksha monorepo into an operator-ready deployment shape. It separates schema migration from API startup, separates scheduled maintenance from API workers, adds liveness/readiness probes, hardens containers, provides backup/restore tooling, and adds protected GitHub deployment workflows.
+Stage 9 turns the KidSuraksha monorepo into an operator-ready deployment shape. It separates schema migration from API startup, separates scheduled maintenance from API workers, adds liveness/readiness probes, hardens containers, provides backup/restore tooling, and adds protected GitHub deployment workflows.
 
 ## Runtime topology
 

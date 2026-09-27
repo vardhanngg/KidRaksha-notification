@@ -1,6 +1,6 @@
-# KidRaksha — Final-product SaaS architecture
+# KidSuraksha — Final-product SaaS architecture
 
-KidRaksha is a notification-sharing parental-control SaaS, not a developer demo. Every stage is designed as one production product.
+KidSuraksha is a notification-sharing parental-control SaaS, not a developer demo. Every stage is designed as one production product.
 
 ## Parent SaaS
 - Public marketing and pricing
@@ -20,7 +20,7 @@ KidRaksha is a notification-sharing parental-control SaaS, not a developer demo.
 - Prominent notification-data disclosure before access
 - Android Notification Access settings handoff
 - Optional message-content sharing
-- Persistent KidRaksha status notification
+- Persistent KidSuraksha status notification
 - Offline local queue with encrypted notification content
 - Retry and periodic synchronization
 - Secure device token in Android Keystore

@@ -8,8 +8,8 @@ From the repository root in Codespaces:
 git checkout main
 git pull origin main
 git checkout -b stage-8-security-privacy
-unzip -o KidRaksha-notification-stage8-root.zip
-rm -f KidRaksha-notification-stage8-root.zip
+unzip -o KidSuraksha-notification-stage8-root.zip
+rm -f KidSuraksha-notification-stage8-root.zip
 ```
 
 ## Static verification

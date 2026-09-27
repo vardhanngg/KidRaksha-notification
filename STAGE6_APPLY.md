@@ -10,7 +10,7 @@ git checkout -b stage-6-parent-ui
 
 ## Apply
 
-Extract `KidRaksha-notification-stage6-root.zip` at the repository root.
+Extract `KidSuraksha-notification-stage6-root.zip` at the repository root.
 
 ## Verify
 

@@ -34,7 +34,7 @@ for p in CAMERA RECORD_AUDIO ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION READ_SM
   echo "$permissions" | grep -q "$p" && fail "forbidden permission present: $p" || true
 done
 
-grep -q 'Theme.KidRaksha.Starting' apps/android/app/src/main/AndroidManifest.xml || fail "Android splash theme missing"
+grep -q 'Theme.KidSuraksha.Starting' apps/android/app/src/main/AndroidManifest.xml || fail "Android splash theme missing"
 grep -q 'Theme.SplashScreen' apps/android/app/src/main/res/values/themes.xml || fail "SplashScreen theme missing"
 
 [[ -f apps/web/app/privacy/page.tsx ]] || fail "public privacy page missing"

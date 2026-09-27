@@ -1,4 +1,4 @@
-# KidRaksha Deployment
+# KidSuraksha Deployment
 
 Stage 9 provides two deployment modes:
 

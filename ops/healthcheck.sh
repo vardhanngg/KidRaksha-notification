@@ -8,4 +8,4 @@ printf '%s\n' "$body" | grep -q '"ok":true' || {
   printf '%s\n' "$body" >&2
   exit 1
 }
-echo 'KidRaksha external health check: PASS'
+echo 'KidSuraksha external health check: PASS'

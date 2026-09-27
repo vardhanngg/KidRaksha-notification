@@ -18,4 +18,4 @@ for f in scripts/*.sh ops/*.sh; do
   bash -n "$f"
 done
 
-printf 'KidRaksha final source gate: PASS\n'
+printf 'KidSuraksha final source gate: PASS\n'

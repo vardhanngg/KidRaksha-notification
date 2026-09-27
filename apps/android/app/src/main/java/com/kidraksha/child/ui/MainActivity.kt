@@ -79,7 +79,7 @@ class MainActivity : Activity() {
             prefs.contentSharingEnabled = false
             StatusNotifier.refresh(this)
             render()
-            Toast.makeText(this, "Sharing stays off until KidRaksha can show its required status notification.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Sharing stays off until KidSuraksha can show its required status notification.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -99,7 +99,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         root.addView(TextView(this).apply {
-            text = "KR  KidRaksha"
+            text = "KR  KidSuraksha"
             textSize = 21f
             setTextColor(getColor(R.color.kd_text))
             setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -112,12 +112,12 @@ class MainActivity : Activity() {
     private fun renderPairingState() {
         root.addView(stepHeader(1, "Connect this device"))
         root.addView(title("Connect this device"))
-        root.addView(body("Your parent will give you an 8-character KidRaksha pairing code. This code connects this phone to the correct family account."))
+        root.addView(body("Your parent will give you an 8-character KidSuraksha pairing code. This code connects this phone to the correct family account."))
         root.addView(space(22))
         primary = primaryButton("Enter pairing code") { showPairDialog() }
         root.addView(primary)
         root.addView(space(12))
-        root.addView(infoCard("Before you continue", "KidRaksha only receives notifications after you explicitly enable Notification Access. Message content is a separate choice."))
+        root.addView(infoCard("Before you continue", "KidSuraksha only receives notifications after you explicitly enable Notification Access. Message content is a separate choice."))
         root.addView(space(12))
         root.addView(secondaryButton("How this works") { showDisclosure(readOnly = true) })
         root.addView(space(8))
@@ -136,7 +136,7 @@ class MainActivity : Activity() {
             else -> 4
         }
         root.addView(stepHeader(step, if (sharing) "Protected and connected" else "Finish setup"))
-        root.addView(title(if (sharing) "KidRaksha is protecting this connection." else "Finish connecting this phone."))
+        root.addView(title(if (sharing) "KidSuraksha is protecting this connection." else "Finish connecting this phone."))
         root.addView(body("Device: ${prefs.deviceName}\nYour parent account can see the status of this device and, when sharing is on, the notifications you have chosen to share."))
         root.addView(space(18))
         root.addView(statusCard("Parent connection", "Connected", true))
@@ -153,7 +153,7 @@ class MainActivity : Activity() {
             primary = primaryButton("Enable Notification Access") { openNotificationAccess() }
             root.addView(primary)
             root.addView(space(10))
-            root.addView(body("Android opens its system settings. Find KidRaksha and allow notification access, then return here."))
+            root.addView(body("Android opens its system settings. Find KidSuraksha and allow notification access, then return here."))
         } else if (!statusReady) {
             root.addView(space(18))
             primary = primaryButton(if (needsPostNotificationsPermission()) "Allow status notification" else "Open notification settings") {
@@ -162,7 +162,7 @@ class MainActivity : Activity() {
             }
             root.addView(primary)
             root.addView(space(10))
-            root.addView(body("KidRaksha keeps a visible status notification while sharing is active."))
+            root.addView(body("KidSuraksha keeps a visible status notification while sharing is active."))
         } else if (!prefs.sharingEnabled) {
             root.addView(space(18))
             primary = primaryButton("Turn on notification sharing") { enableSharing() }
@@ -212,7 +212,7 @@ class MainActivity : Activity() {
             root.addView(secondaryButton("Unpair this device") { confirmUnpair() })
         }
         root.addView(space(18))
-        root.addView(infoCard("Your control", "KidRaksha cannot turn Notification Access on for you. If you revoke access, sharing stops. Message content remains off unless you explicitly enable it."))
+        root.addView(infoCard("Your control", "KidSuraksha cannot turn Notification Access on for you. If you revoke access, sharing stops. Message content remains off unless you explicitly enable it."))
     }
 
     private fun showPairDialog() {
@@ -257,7 +257,7 @@ class MainActivity : Activity() {
     }
 
     private fun showDisclosure(readOnly: Boolean) {
-        val message = "KidRaksha is a parental monitoring app. When sharing is enabled, Android's Notification Access service can receive notifications from other apps and send selected notification data to the paired parent account. Message content is optional. A persistent KidRaksha notification identifies when sharing is active."
+        val message = "KidSuraksha is a parental monitoring app. When sharing is enabled, Android's Notification Access service can receive notifications from other apps and send selected notification data to the paired parent account. Message content is optional. A persistent KidSuraksha notification identifies when sharing is active."
         AlertDialog.Builder(this)
             .setTitle(if(readOnly) "How notification sharing works" else "Before you enable sharing")
             .setMessage(message)
@@ -321,7 +321,7 @@ class MainActivity : Activity() {
         val detailIntent=Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS).apply { putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,component) }
         try { startActivity(detailIntent) }
         catch (_:Exception) { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
-        Toast.makeText(this,"Enable KidRaksha, then return here.",Toast.LENGTH_LONG).show()
+        Toast.makeText(this,"Enable KidSuraksha, then return here.",Toast.LENGTH_LONG).show()
     }
 
     private fun openAppNotificationSettings() {
@@ -332,7 +332,7 @@ class MainActivity : Activity() {
 
     private fun confirmUnpair() {
         AlertDialog.Builder(this).setTitle("Unpair this device?")
-            .setMessage("KidRaksha will stop sharing and remove this phone from the parent account. Pending unsent notifications will be deleted from this phone.")
+            .setMessage("KidSuraksha will stop sharing and remove this phone from the parent account. Pending unsent notifications will be deleted from this phone.")
             .setNegativeButton("Cancel",null)
             .setPositiveButton("Unpair") { _,_ ->
                 Thread {
@@ -353,7 +353,7 @@ class MainActivity : Activity() {
         AlertDialog.Builder(this)
             .setTitle("Privacy and data")
             .setMessage(
-                "KidRaksha only shares notification data when you explicitly enable notification sharing. " +
+                "KidSuraksha only shares notification data when you explicitly enable notification sharing. " +
                 "Message content is optional and stays off unless you enable it. " +
                 "The parent account can see data sent by this device while the device is paired. " +
                 "Pending unsent notifications are stored on this phone in encrypted form. " +

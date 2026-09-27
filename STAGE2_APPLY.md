@@ -1,6 +1,6 @@
-# Apply Stage 2 — KidRaksha
+# Apply Stage 2 — KidSuraksha
 
-This package is intended to be applied to the existing `vardhanngg/KidRaksha-notification` repository after Stage 1.
+This package is intended to be applied to the existing `vardhanngg/KidSuraksha-notification` repository after Stage 1.
 
 ## In the Codespace
 

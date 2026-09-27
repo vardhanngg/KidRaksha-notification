@@ -42,15 +42,15 @@ export async function sendPasswordResetEmail({ to, token }) {
   await transport.sendMail({
     from: process.env.SMTP_FROM,
     to,
-    subject: "Reset your KidRaksha password",
+    subject: "Reset your KidSuraksha password",
     text: [
-      "We received a request to reset your KidRaksha password.",
+      "We received a request to reset your KidSuraksha password.",
       "",
       `Reset your password: ${url}`,
       "",
       "This link expires in 30 minutes and can be used once.",
       "If you did not request this, you can ignore this email."
     ].join("\n"),
-    html: `<p>We received a request to reset your KidRaksha password.</p><p><a href="${url}">Reset your password</a></p><p>This link expires in 30 minutes and can be used once.</p><p>If you did not request this, you can ignore this email.</p>`
+    html: `<p>We received a request to reset your KidSuraksha password.</p><p><a href="${url}">Reset your password</a></p><p>This link expires in 30 minutes and can be used once.</p><p>If you did not request this, you can ignore this email.</p>`
   });
 }

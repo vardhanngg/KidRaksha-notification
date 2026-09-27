@@ -1,7 +1,7 @@
 
 # Google Play / monitoring compliance checklist
 
-KidRaksha is designed specifically for parental monitoring of a child's device.
+KidSuraksha is designed specifically for parental monitoring of a child's device.
 
 The Android application must:
 - use the `isMonitoringTool` manifest metadata with `child_monitoring`
@@ -24,6 +24,6 @@ Policy compliance and legal obligations must be rechecked before every productio
 - The child app does not collect or transmit notification data until sharing is enabled after an in-app disclosure.
 - Message content is separately opt-in.
 - Notification Access is granted only through Android system settings.
-- A persistent KidRaksha status notification is maintained while sharing is active when Android notification permission allows it.
+- A persistent KidSuraksha status notification is maintained while sharing is active when Android notification permission allows it.
 - There is no stealth mode and no attempt to bypass Android notification redaction or permission controls.
 - Parent accounts expose data export and permanent account deletion from the web console.

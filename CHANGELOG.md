@@ -1,7 +1,7 @@
 # Changelog
 
 ## Stage 2 — Onboarding & secure pairing
-- Renamed product branding to KidRaksha and pre-release Android package/application identity.
+- Renamed product branding to KidSuraksha and pre-release Android package/application identity.
 - Added pairing-code IDs, expiry metadata, cancellation, device-paired realtime event, device status, and rename endpoints.
 - Replaced basic child pairing UI with a guided setup state machine.
 - Switched notification-access detection to NotificationManager.isNotificationListenerAccessGranted on supported API levels.
@@ -12,7 +12,7 @@
 
 
 ## 2026-09-26 — SaaS foundation hardening
-- Built KidRaksha as a production-shaped notification-sharing SaaS monorepo.
+- Built KidSuraksha as a production-shaped notification-sharing SaaS monorepo.
 - Added parent authentication, pairing, tenant-scoped notifications, SSE realtime updates, billing hooks, retention controls, export and account deletion.
 - Added Android notification listener, explicit disclosure, visible sharing status, encrypted offline queue, duplicate-safe sync and fail-closed behavior.
 - Added Play monitoring metadata, privacy/legal pages and external account-deletion resource.

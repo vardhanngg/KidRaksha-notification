@@ -4,7 +4,7 @@ Stage 5 is designed to be extracted at the repository root on top of the Stage 4
 
 ```bash
 git checkout -b stage-5-saas-api
-unzip -o KidRaksha-notification-stage5-root.zip
+unzip -o KidSuraksha-notification-stage5-root.zip
 
 git diff --check
 bash scripts/check-product.sh

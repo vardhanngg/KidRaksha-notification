@@ -1,6 +1,6 @@
 # Stage 9 apply guide
 
-Run these commands from the root of the existing `KidRaksha-notification` repository after Stage 8 has been committed/merged.
+Run these commands from the root of the existing `KidSuraksha-notification` repository after Stage 8 has been committed/merged.
 
 ```bash
 git fetch origin
@@ -12,8 +12,8 @@ git checkout -b stage-9-operations
 Extract the Stage 9 ZIP at the repository root. Do not commit the ZIP itself.
 
 ```bash
-unzip -o KidRaksha-notification-stage9-root.zip
-rm -f KidRaksha-notification-stage9-root.zip
+unzip -o KidSuraksha-notification-stage9-root.zip
+rm -f KidSuraksha-notification-stage9-root.zip
 ```
 
 Validate:
