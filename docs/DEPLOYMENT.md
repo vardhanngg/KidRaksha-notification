@@ -58,7 +58,7 @@ Create exactly two recurring Razorpay plans for new customers:
 - **Weekly:** ₹79 every week
 - **Monthly:** ₹199 every month
 
-Set their plan IDs as `RAZORPAY_PLAN_WEEKLY` and `RAZORPAY_PLAN_MONTHLY`. Do not configure an annual purchase option. Razorpay supports recurring weekly and monthly schedules. citeturn982280search1turn237988search3
+Set their plan IDs as `RAZORPAY_PLAN_WEEKLY` and `RAZORPAY_PLAN_MONTHLY`. Do not configure an annual purchase option. Razorpay subscriptions require a finite `total_count`; KidSuraksha configures 520 weekly cycles and 120 monthly cycles, each approximately 10 years, which is within Razorpay's documented maximum. After a subscription reaches that limit, the customer can start a new subscription. citeturn982280search1turn237988search3
 
 For an existing deployment, `RAZORPAY_PLAN_STARTER` may remain configured temporarily so an existing ₹199/month Starter subscription can still be recognized; it is not exposed as a new purchase option.
 - `API_IMAGE` and `WEB_IMAGE` when using a non-default registry
