@@ -13,7 +13,7 @@ import { addClient, clientCount, finishReplay, publishEvent, replayEvents, strea
 import logger from "./logger.js";
 import { createRateLimiters, closeRateLimiter, waitForRateLimiter, rateLimiterHealth } from "./rate-limit.js";
 import { decodeCursor, decodeNotificationCursor, encodeCursor, notificationCursorFromRow } from "./pagination.js";
-import { PLANS, planFor, planFromProviderId, hmacSha256, createRazorpaySubscription } from "./billing.js";
+import { PLANS, planFor, planFromProviderId, subscriptionTotalCountFor, hmacSha256, createRazorpaySubscription } from "./billing.js";
 import { effectivePlan, subscriptionAccess } from "./entitlements.js";
 import { sendPasswordResetEmail, validateEmailConfig } from "./email.js";
 
@@ -864,7 +864,10 @@ app.post("/v1/billing/subscription", parentApiLimiter, requireParent, requireCsr
       });
     }
 
-    const subscription = await createRazorpaySubscription({ planId });
+    const subscription = await createRazorpaySubscription({
+      planId,
+      totalCount: subscriptionTotalCountFor(planKey)
+    });
     const updated = await client.query(
       `UPDATE subscriptions
           SET plan_key=$1,provider='razorpay',provider_subscription_id=$2,status='created',updated_at=now()
