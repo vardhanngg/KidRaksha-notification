@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PLANS, planFor } from "../src/billing.js";
+import { PLANS, planFor, subscriptionTotalCountFor } from "../src/billing.js";
 
 test("public billing plans are weekly and monthly only", () => {
   assert.deepEqual(Object.keys(PLANS), ["trial", "weekly", "monthly"]);
@@ -13,4 +13,11 @@ test("public billing plans are weekly and monthly only", () => {
 test("legacy plan records still resolve for existing subscriptions", () => {
   assert.equal(planFor("starter").key, "starter");
   assert.equal(planFor("family").key, "family");
+});
+
+
+test("Razorpay subscription duration is plan-specific", () => {
+  assert.equal(subscriptionTotalCountFor("weekly"), 520);
+  assert.equal(subscriptionTotalCountFor("monthly"), 120);
+  assert.throws(() => subscriptionTotalCountFor("trial"), /Unsupported subscription plan/);
 });
