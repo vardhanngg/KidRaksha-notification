@@ -82,7 +82,7 @@ jobs:
           test -n "$KIDRAKSHA_VERSION_NAME" || { echo "Android version name is required (set input for manual runs or ANDROID_VERSION_NAME for tag runs)" >&2; exit 1; }
           ./gradlew clean test lint bundleRelease
           mkdir -p ../../artifacts/android
-          cp app/build/outputs/bundle/release/app-release.aab ../../artifacts/android/KidRaksha-${KIDRAKSHA_VERSION_NAME}.aab
+          cp app/build/outputs/bundle/release/app-release.aab ../../artifacts/android/KidSuraksha-${KIDRAKSHA_VERSION_NAME}.aab
           test ! -f app/build/outputs/mapping/release/mapping.txt || cp app/build/outputs/mapping/release/mapping.txt ../../artifacts/android/mapping-${KIDRAKSHA_VERSION_NAME}.txt
 
       - name: Verify AAB
@@ -95,6 +95,6 @@ jobs:
       - name: Upload signed release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KidRaksha-android-${{ inputs.version_name || vars.ANDROID_VERSION_NAME }}
+          name: KidSuraksha-android-${{ inputs.version_name || vars.ANDROID_VERSION_NAME }}
           path: artifacts/android/
           if-no-files-found: error
