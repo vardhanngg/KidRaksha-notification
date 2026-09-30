@@ -40,14 +40,20 @@ async function generate() {
   try {
     const r = await api("/devices/pairing-codes", { method: "POST" });
 
+    if (typeof r?.code !== "string" || !r.code || typeof r?.id !== "string" || !r.id || typeof r?.issuedAt !== "string") {
+      throw new Error("Pairing service returned an invalid response.");
+    }
+
     const expiry = r.expiresAt
       ? new Date(r.expiresAt)
       : new Date(Date.parse(r.issuedAt) + (r.expiresInSeconds ?? 600) * 1000);
 
-
+    if (Number.isNaN(expiry.getTime())) {
+      throw new Error("Pairing service returned an invalid expiry.");
+    }
 
     setCode(r.code);
-    setCodeId(r.id ?? "");
+    setCodeId(r.id);
     setIssuedAt(r.issuedAt);
     setExpiresAt(expiry.toISOString());
     setSeconds(remaining(expiry.toISOString()));
