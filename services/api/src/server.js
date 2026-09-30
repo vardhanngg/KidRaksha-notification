@@ -7,8 +7,8 @@ import cors from "cors";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { pool, tx } from "./db.js";
-import { createSession, getSession, deleteSession, refreshSessionActivity, cookieOptions, publicCsrfCookieOptions, COOKIE_NAME, CSRF_COOKIE, passwordHash, passwordMatches, passwordNeedsRehash, reauthenticate, hasRecentReauthentication } from "./auth.js";
-import { randomToken, sha256, encryptText, decryptText, timingSafeEqualHex } from "./crypto.js";
+import { createSession, getSession, deleteSession, refreshSessionActivity, cookieOptions, publicCsrfCookieOptions, COOKIE_NAME, CSRF_COOKIE, passwordHash, passwordMatches, reauthenticate, hasRecentReauthentication } from "./auth.js";
+import { randomToken, sha256, encryptText, decryptText, timingSafeEqualHex, passwordNeedsRehash } from "./crypto.js";
 import { addClient, clientCount, finishReplay, publishEvent, replayEvents, streamReady } from "./events.js";
 import logger from "./logger.js";
 import { createRateLimiters, closeRateLimiter, waitForRateLimiter, rateLimiterHealth } from "./rate-limit.js";
@@ -586,14 +586,29 @@ app.post("/v1/devices/pairing-codes", pairingLimiter, requireParent, requireCsrf
       [req.auth.parent_id]
     );
 
-    const code = makePairingCode();
-    const issuedAt = new Date();
-    await pool.query(
-      `INSERT INTO pairing_codes(id,parent_id,code_hash,expires_at) VALUES($1,$2,$3,$4)`,
-      [crypto.randomUUID(), req.auth.parent_id, sha256(`${process.env.PAIRING_CODE_SECRET || "dev"}:${code}`), new Date(issuedAt.getTime() + 10 * 60 * 1000)]
-    );
-    await audit(req.auth.parent_id, null, "pairing_code_created", {});
-    res.status(201).json({ code, expiresInSeconds: 600, issuedAt: issuedAt.toISOString() });
+ const code = makePairingCode();
+const id = crypto.randomUUID();
+const issuedAt = new Date();
+const expiresAt = new Date(issuedAt.getTime() + 10 * 60 * 1000);
+
+await pool.query(
+  `INSERT INTO pairing_codes(id,parent_id,code_hash,expires_at) VALUES($1,$2,$3,$4)`,
+  [
+    id,
+    req.auth.parent_id,
+    sha256(`${process.env.PAIRING_CODE_SECRET || "dev"}:${code}`),
+    expiresAt
+  ]
+);
+
+await audit(req.auth.parent_id, null, "pairing_code_created", {});
+res.status(201).json({
+  id,
+  code,
+  expiresAt: expiresAt.toISOString(),
+  expiresInSeconds: 600,
+  issuedAt: issuedAt.toISOString()
+});
   } catch (err) { next(err); }
 });
 
@@ -1553,6 +1568,10 @@ async function requireCsrf(req, res, next) {
       return sendError(res, req, 403, "Cross-site state-changing requests are not allowed.", "cross_site_request_rejected");
     }
     const origin = req.header("origin");
+    console.error("CSRF_ORIGIN_DEBUG", {
+  requestOrigin: origin ?? null,
+  configuredOrigin: process.env.PUBLIC_WEB_ORIGIN ?? null,
+});
     if (origin && origin !== process.env.PUBLIC_WEB_ORIGIN) {
       return sendError(res, req, 403, "Request origin is not allowed.", "origin_rejected");
     }
