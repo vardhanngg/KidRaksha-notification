@@ -14,7 +14,7 @@ required=(
   "services/api/db/migrations/002_stage2_pairing.sql"
   "apps/web/app/onboarding/page.tsx"
   "apps/android/app/src/main/AndroidManifest.xml"
-  "apps/android/app/src/main/java/com/kidraksha/child/service/NotificationCaptureService.kt"
+  "apps/android/app/src/main/java/com/kidsuraksha/child/service/NotificationCaptureService.kt"
   "infra/docker-compose.yml"
 )
 
@@ -32,8 +32,8 @@ fi
 grep -q 'device.paired' "$root/services/api/src/server.js" || { echo "Missing device.paired event"; exit 1; }
 grep -q 'updated_at' "$root/services/api/db/schema.sql" || { echo "Missing Stage 2 device metadata"; exit 1; }
 grep -q 'pairing-codes/:id' "$root/services/api/src/server.js" || { echo "Missing pairing-code cancellation endpoint"; exit 1; }
-grep -q 'isNotificationListenerAccessGranted' "$root/apps/android/app/src/main/java/com/kidraksha/child/ui/MainActivity.kt" || { echo "Missing modern notification-access check"; exit 1; }
-grep -q 'NotificationNormalizer' "$root/apps/android/app/src/main/java/com/kidraksha/child/service/NotificationCaptureService.kt" || { echo "Missing notification normalization layer"; exit 1; }
+grep -q 'isNotificationListenerAccessGranted' "$root/apps/android/app/src/main/java/com/kidsuraksha/child/ui/MainActivity.kt" || { echo "Missing modern notification-access check"; exit 1; }
+grep -q 'NotificationNormalizer' "$root/apps/android/app/src/main/java/com/kidsuraksha/child/service/NotificationCaptureService.kt" || { echo "Missing notification normalization layer"; exit 1; }
 grep -q 'notification_key_hash' "$root/services/api/db/schema.sql" || { echo "Missing notification key hashing"; exit 1; }
 grep -q 'content_state' "$root/services/api/db/schema.sql" || { echo "Missing content state"; exit 1; }
 if grep -R -nE 'LittleWatch|littlewatch|LITTLEWATCH' --exclude-dir=.git --exclude='check-product.sh' --exclude='check-security.sh' --exclude='check-web-ui.sh' --exclude='check-release.sh' "$root" >/tmp/kidraksha-brand.txt 2>/dev/null; then
@@ -48,8 +48,8 @@ if ! grep -q 'androidx.work:work-runtime-ktx:2.12.0' "$root/apps/android/app/bui
   echo "WorkManager 2.12.0 dependency missing." >&2
   exit 1
 fi
-worker="$root/apps/android/app/src/main/java/com/kidraksha/child/sync/NotificationSyncWorker.kt"
-scheduler="$root/apps/android/app/src/main/java/com/kidraksha/child/sync/SyncScheduler.kt"
+worker="$root/apps/android/app/src/main/java/com/kidsuraksha/child/sync/NotificationSyncWorker.kt"
+scheduler="$root/apps/android/app/src/main/java/com/kidsuraksha/child/sync/SyncScheduler.kt"
 server="$root/services/api/src/server.js"
 grep -q 'setRequiredNetworkType(NetworkType.CONNECTED)' "$scheduler" || { echo "Missing connected-network constraint." >&2; exit 1; }
 grep -q 'ExistingWorkPolicy.KEEP' "$scheduler" || { echo "Missing unique one-time work policy." >&2; exit 1; }
