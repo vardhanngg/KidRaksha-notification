@@ -1,9 +1,9 @@
-package com.kidraksha.child.notification
+package com.kidsuraksha.child.notification
 
 import android.app.Notification
 import android.content.Context
 import android.service.notification.StatusBarNotification
-import com.kidraksha.child.data.Prefs
+import com.kidsuraksha.child.data.Prefs
 import java.security.MessageDigest
 
 class NotificationNormalizer(private val context: Context) {

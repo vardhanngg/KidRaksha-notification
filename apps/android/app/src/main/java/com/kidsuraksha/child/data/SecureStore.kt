@@ -1,5 +1,5 @@
 
-package com.kidraksha.child.data
+package com.kidsuraksha.child.data
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec

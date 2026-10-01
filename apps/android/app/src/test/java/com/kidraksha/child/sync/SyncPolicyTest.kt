@@ -1,4 +1,4 @@
-package com.kidraksha.child.sync
+package com.kidsuraksha.child.sync
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

@@ -1,13 +1,13 @@
-package com.kidraksha.child.sync
+package com.kidsuraksha.child.sync
 
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.kidraksha.child.data.PendingStore
-import com.kidraksha.child.data.Prefs
-import com.kidraksha.child.data.SecureStore
-import com.kidraksha.child.network.ApiClient
-import com.kidraksha.child.service.StatusNotifier
+import com.kidsuraksha.child.data.PendingStore
+import com.kidsuraksha.child.data.Prefs
+import com.kidsuraksha.child.data.SecureStore
+import com.kidsuraksha.child.network.ApiClient
+import com.kidsuraksha.child.service.StatusNotifier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive

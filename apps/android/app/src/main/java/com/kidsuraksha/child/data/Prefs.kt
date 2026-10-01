@@ -1,5 +1,5 @@
 
-package com.kidraksha.child.data
+package com.kidsuraksha.child.data
 
 import android.content.Context
 
@@ -7,7 +7,7 @@ class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("kidraksha_prefs", Context.MODE_PRIVATE)
 
     var serverUrl: String
-        get() = sp.getString("server_url", com.kidraksha.child.BuildConfig.API_BASE_URL).orEmpty().trimEnd('/')
+        get() = sp.getString("server_url", com.kidsuraksha.child.BuildConfig.API_BASE_URL).orEmpty().trimEnd('/')
         set(value) = sp.edit().putString("server_url", value.trimEnd('/')).apply()
 
     var deviceId: String?

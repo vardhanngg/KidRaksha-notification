@@ -71,7 +71,7 @@ jobs:
           KIDRAKSHA_API_URL: ${{ inputs.api_url || vars.ANDROID_API_URL }}
           KIDRAKSHA_VERSION_CODE: ${{ inputs.version_code || vars.ANDROID_VERSION_CODE }}
           KIDRAKSHA_VERSION_NAME: ${{ inputs.version_name || vars.ANDROID_VERSION_NAME }}
-          KIDRAKSHA_REQUIRE_SIGNING: "true"
+          KIDSURAKSHA_REQUIRE_SIGNING: "true"
           KIDRAKSHA_RELEASE_KEYSTORE: ${{ runner.temp }}/kidraksha-release.jks
           KIDRAKSHA_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KIDRAKSHA_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
