@@ -12,4 +12,14 @@ Before submitting KidSuraksha, prepare reviewer access that does not require a p
 
 Do not provide production master passwords, deployment SSH keys, payment-provider secrets or private signing credentials.
 
-Replace placeholders with the actual reviewer instructions before submission.
+## Submission checklist
+
+Complete and verify each item in Play Console before submitting:
+- Public app URL: [enter verified production URL]
+- Reviewer parent account: [create a dedicated account; provide credentials through Play Console only]
+- Test device and pairing steps: [provide device availability, app version, and exact steps]
+- Test entitlement: [describe the no-payment test path]
+- Disclosure and visible monitoring indicator: [describe where the reviewer sees these]
+- Stop sharing and unpair: [give exact navigation steps]
+
+Do not submit while any bracketed field remains. These values must come from the deployed release; they cannot be safely invented in repository documentation.
