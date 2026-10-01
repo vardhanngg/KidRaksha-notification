@@ -1568,10 +1568,6 @@ async function requireCsrf(req, res, next) {
       return sendError(res, req, 403, "Cross-site state-changing requests are not allowed.", "cross_site_request_rejected");
     }
     const origin = req.header("origin");
-    console.error("CSRF_ORIGIN_DEBUG", {
-  requestOrigin: origin ?? null,
-  configuredOrigin: process.env.PUBLIC_WEB_ORIGIN ?? null,
-});
     if (origin && origin !== process.env.PUBLIC_WEB_ORIGIN) {
       return sendError(res, req, 403, "Request origin is not allowed.", "origin_rejected");
     }
