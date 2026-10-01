@@ -15,6 +15,7 @@ import { createRateLimiters, closeRateLimiter, waitForRateLimiter, rateLimiterHe
 import { decodeCursor, decodeNotificationCursor, encodeCursor, notificationCursorFromRow } from "./pagination.js";
 import { PLANS, planFor, planFromProviderId, subscriptionTotalCountFor, hmacSha256, createRazorpaySubscription } from "./billing.js";
 import { effectivePlan, subscriptionAccess } from "./entitlements.js";
+import { webhookFailureStatus } from "./webhook-errors.js";
 import { sendPasswordResetEmail, validateEmailConfig } from "./email.js";
 
 const app = express();
@@ -1274,8 +1275,10 @@ async function handleBillingWebhook(req, res) {
     });
     if (outcome === "duplicate") return res.json({ ok: true, duplicate: true });
     res.json({ ok: true });
-  } catch {
-    res.status(400).send("invalid webhook");
+  } catch (err) {
+    const status = webhookFailureStatus(err);
+    if (status === 500) logger.error({ err }, "billing_webhook_processing_failed");
+    res.status(status).send(status === 400 ? "invalid webhook" : "webhook processing failed");
   }
 }
 
