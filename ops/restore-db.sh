@@ -7,6 +7,9 @@ file="${1:?Usage: DATABASE_URL=... $0 /path/to/backup.dump}"
 [ -f "$file" ] || { echo "Backup file not found: $file" >&2; exit 1; }
 case "$file" in *.dump) ;; *) echo "Refusing non-.dump file: $file" >&2; exit 1;; esac
 
+# Validate the archive before asking for destructive confirmation or touching the target DB.
+pg_restore --list "$file" >/dev/null || { echo "Backup archive is invalid or unreadable" >&2; exit 1; }
+
 if [ "${CONFIRM_RESTORE:-}" != "YES" ]; then
   echo "Destructive restore. Set CONFIRM_RESTORE=YES to continue." >&2
   exit 2
