@@ -15,6 +15,7 @@ import { createRateLimiters, closeRateLimiter, waitForRateLimiter, rateLimiterHe
 import { decodeCursor, decodeNotificationCursor, encodeCursor, notificationCursorFromRow } from "./pagination.js";
 import { PLANS, planFor, planFromProviderId, subscriptionTotalCountFor, hmacSha256, createRazorpaySubscription } from "./billing.js";
 import { effectivePlan, subscriptionAccess } from "./entitlements.js";
+import { webhookFailureStatus } from "./webhook-errors.js";
 import { sendPasswordResetEmail, validateEmailConfig } from "./email.js";
 
 const app = express();
@@ -1235,42 +1236,49 @@ async function handleBillingWebhook(req, res) {
       webhookParentId = rows[0]?.parent_id || null;
     }
 
-    // Keep only the minimum metadata required for idempotency/diagnostics.
-    // Do not persist the complete payment-provider payload, which may contain
-    // customer/payment fields unrelated to KidRaksha operation.
+    // Commit the idempotency record and subscription transition together.
+    // If processing fails, the transaction rolls back so Razorpay can retry.
     const eventRecord = JSON.stringify({ providerSubscriptionId });
-    const inserted = await pool.query(
-      `INSERT INTO webhook_events(provider,provider_event_id,event_type,parent_id,payload)
-       VALUES('razorpay',$1,$2,$3,$4)
-       ON CONFLICT(provider,provider_event_id) DO NOTHING`,
-      [eventId,eventType,webhookParentId,eventRecord]
-    );
-    if (!inserted.rowCount) return res.json({ ok: true, duplicate: true });
-    if (providerSubscriptionId) {
+    const outcome = await tx(async client => {
+      const inserted = await client.query(
+        `INSERT INTO webhook_events(provider,provider_event_id,event_type,parent_id,payload)
+         VALUES('razorpay',$1,$2,$3,$4)
+         ON CONFLICT(provider,provider_event_id) DO NOTHING`,
+        [eventId,eventType,webhookParentId,eventRecord]
+      );
+      if (!inserted.rowCount) return "duplicate";
+      if (!providerSubscriptionId) return "applied";
+
       const status = normalizeSubscriptionStatus(eventType, entity?.status);
       const providerPlan = planFromProviderId(entity?.plan_id);
-      const { rows: currentSub } = await pool.query(
-        "SELECT plan_key FROM subscriptions WHERE provider_subscription_id=$1",
+      const { rows: currentSub } = await client.query(
+        "SELECT parent_id,plan_key FROM subscriptions WHERE provider_subscription_id=$1 FOR UPDATE",
         [providerSubscriptionId]
       );
-      const plan = providerPlan || planFor(currentSub[0]?.plan_key || "trial");
+      if (!currentSub[0]) return "applied";
+      const plan = providerPlan || planFor(currentSub[0].plan_key || "trial");
       const periodStart = entity?.current_start ? new Date(entity.current_start * 1000) : null;
       const periodEnd = entity?.current_end ? new Date(entity.current_end * 1000) : null;
-      await pool.query(
+      await client.query(
         `UPDATE subscriptions
             SET plan_key=$1,status=$2,current_period_start=COALESCE($3,current_period_start),
                 current_period_end=COALESCE($4,current_period_end),updated_at=now()
           WHERE provider_subscription_id=$5`,
         [plan.key,status,periodStart,periodEnd,providerSubscriptionId]
       );
-      const { rows: affected } = await pool.query("SELECT parent_id FROM subscriptions WHERE provider_subscription_id=$1", [providerSubscriptionId]);
-      if (affected[0]) {
-        await audit(affected[0].parent_id, null, "billing_webhook_applied", { eventType, status }, "system");
-      }
-    }
+      await client.query(
+        `INSERT INTO audit_log(parent_id,actor_type,action,metadata)
+         VALUES($1,'system','billing_webhook_applied',$2)`,
+        [currentSub[0].parent_id, JSON.stringify({ eventType, status })]
+      );
+      return "applied";
+    });
+    if (outcome === "duplicate") return res.json({ ok: true, duplicate: true });
     res.json({ ok: true });
-  } catch {
-    res.status(400).send("invalid webhook");
+  } catch (err) {
+    const status = webhookFailureStatus(err);
+    if (status === 500) logger.error({ err }, "billing_webhook_processing_failed");
+    res.status(status).send(status === 400 ? "invalid webhook" : "webhook processing failed");
   }
 }
 
@@ -1568,10 +1576,6 @@ async function requireCsrf(req, res, next) {
       return sendError(res, req, 403, "Cross-site state-changing requests are not allowed.", "cross_site_request_rejected");
     }
     const origin = req.header("origin");
-    console.error("CSRF_ORIGIN_DEBUG", {
-  requestOrigin: origin ?? null,
-  configuredOrigin: process.env.PUBLIC_WEB_ORIGIN ?? null,
-});
     if (origin && origin !== process.env.PUBLIC_WEB_ORIGIN) {
       return sendError(res, req, 403, "Request origin is not allowed.", "origin_rejected");
     }
