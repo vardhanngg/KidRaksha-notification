@@ -2,8 +2,8 @@ import crypto from "node:crypto";
 
 export const PLANS = {
   trial: { key: "trial", name: "Trial", devices: 1, retention: 7, pricePaise: 0, displayPrice: "Free for 7 days" },
-  weekly: { key: "weekly", name: "Weekly", devices: 1, retention: 7, pricePaise: 7900, displayPrice: "₹79 / week" },
-  monthly: { key: "monthly", name: "Monthly", devices: 1, retention: 30, pricePaise: 19900, displayPrice: "₹199 / month" }
+  weekly: { key: "weekly", name: "Weekly", devices: 1, retention: 7, pricePaise: 4900, displayPrice: "₹49 / week" },
+  monthly: { key: "monthly", name: "Monthly", devices: 2, retention: 30, pricePaise: 19900, displayPrice: "₹199 / month" }
 };
 
 const LEGACY_PLANS = {
