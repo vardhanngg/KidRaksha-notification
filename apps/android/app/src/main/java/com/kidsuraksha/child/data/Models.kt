@@ -1,4 +1,4 @@
-package com.kidraksha.child.data
+package com.kidsuraksha.child.data
 
 data class QueuedNotification(
     val id: Long,

@@ -1,4 +1,4 @@
-package com.kidraksha.child.notification
+package com.kidsuraksha.child.notification
 
 object NotificationText {
     fun clean(value: CharSequence?, maxChars: Int): String? {

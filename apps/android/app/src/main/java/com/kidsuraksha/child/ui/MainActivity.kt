@@ -1,4 +1,4 @@
-package com.kidraksha.child.ui
+package com.kidsuraksha.child.ui
 
 import android.Manifest
 import android.app.Activity
@@ -15,17 +15,17 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import android.widget.*
-import com.kidraksha.child.BuildConfig
-import com.kidraksha.child.data.Prefs
-import com.kidraksha.child.R
-import com.kidraksha.child.data.PendingStore
-import com.kidraksha.child.data.SecureStore
-import com.kidraksha.child.network.ApiClient
-import com.kidraksha.child.service.NotificationCaptureService
-import com.kidraksha.child.service.StatusNotifier
-import com.kidraksha.child.sync.SyncScheduler
-import com.kidraksha.child.sync.SyncManager
-import com.kidraksha.child.device.DevicePolicyController
+import com.kidsuraksha.child.BuildConfig
+import com.kidsuraksha.child.data.Prefs
+import com.kidsuraksha.child.R
+import com.kidsuraksha.child.data.PendingStore
+import com.kidsuraksha.child.data.SecureStore
+import com.kidsuraksha.child.network.ApiClient
+import com.kidsuraksha.child.service.NotificationCaptureService
+import com.kidsuraksha.child.service.StatusNotifier
+import com.kidsuraksha.child.sync.SyncScheduler
+import com.kidsuraksha.child.sync.SyncManager
+import com.kidsuraksha.child.device.DevicePolicyController
 
 class MainActivity : Activity() {
     private lateinit var prefs: Prefs

@@ -1,9 +1,9 @@
-package com.kidraksha.child.network
+package com.kidsuraksha.child.network
 
-import com.kidraksha.child.BuildConfig
-import com.kidraksha.child.data.QueuedNotification
-import com.kidraksha.child.data.Prefs
-import com.kidraksha.child.data.SecureStore
+import com.kidsuraksha.child.BuildConfig
+import com.kidsuraksha.child.data.QueuedNotification
+import com.kidsuraksha.child.data.Prefs
+import com.kidsuraksha.child.data.SecureStore
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection

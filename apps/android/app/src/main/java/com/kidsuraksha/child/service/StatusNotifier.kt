@@ -1,4 +1,4 @@
-package com.kidraksha.child.service
+package com.kidsuraksha.child.service
 
 import android.Manifest
 import android.app.Notification
@@ -10,9 +10,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import com.kidraksha.child.R
-import com.kidraksha.child.data.Prefs
-import com.kidraksha.child.ui.MainActivity
+import com.kidsuraksha.child.R
+import com.kidsuraksha.child.data.Prefs
+import com.kidsuraksha.child.ui.MainActivity
 
 object StatusNotifier {
     private const val CHANNEL_ID = "kidraksha_status"

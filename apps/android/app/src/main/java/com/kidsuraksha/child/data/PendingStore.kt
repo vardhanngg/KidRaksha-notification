@@ -1,4 +1,4 @@
-package com.kidraksha.child.data
+package com.kidsuraksha.child.data
 
 import android.content.ContentValues
 import android.content.Context
