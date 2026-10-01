@@ -1,4 +1,4 @@
-package com.kidraksha.child.notification
+package com.kidsuraksha.child.notification
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
