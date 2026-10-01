@@ -12,14 +12,15 @@ trap 'rm -f "$tmp"' EXIT INT TERM
 
 umask 077
 pg_dump --format=custom --no-owner --no-privileges --file="$tmp" "$DATABASE_URL"
+# Do not publish a backup unless PostgreSQL can read its archive directory.
+pg_restore --list "$tmp" >/dev/null
 mv -f "$tmp" "$out"
 chmod 600 "$out"
 
-# Retain backups created by this script's default naming convention.
 case "$out" in
   ./backup-*|backup-*)
     find "$dir" -type f -name 'backup-*.dump' -mtime "+$retention_days" -delete
     ;;
 esac
 
-printf 'Backup written to %s\n' "$out"
+printf 'Backup written and archive-validated at %s\n' "$out"
