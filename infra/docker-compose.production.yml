@@ -81,7 +81,7 @@ services:
     networks: [backend]
 
   maintenance:
-    image: ${API_IMAGE:-ghcr.io/vardhanngg/kidraksha-api}:${IMAGE_TAG:?Set IMAGE_TAG}
+    image: ${API_IMAGE:?Set API_IMAGE}:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: unless-stopped
     init: true
     environment:
