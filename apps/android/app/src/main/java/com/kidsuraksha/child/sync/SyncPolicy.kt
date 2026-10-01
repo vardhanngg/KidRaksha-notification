@@ -1,4 +1,4 @@
-package com.kidraksha.child.sync
+package com.kidsuraksha.child.sync
 
 /**
  * Maps HTTP outcomes to the action the persistent sync worker should take.

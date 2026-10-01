@@ -18,7 +18,7 @@ on:
       ref:
         description: Git ref to build
         required: true
-        default: main
+        default: stage-10-final-release
   push:
     tags:
       - "v*"
@@ -68,22 +68,22 @@ jobs:
       - name: Build signed AAB
         working-directory: apps/android
         env:
-          KIDRAKSHA_API_URL: ${{ inputs.api_url || vars.ANDROID_API_URL }}
-          KIDRAKSHA_VERSION_CODE: ${{ inputs.version_code || vars.ANDROID_VERSION_CODE }}
-          KIDRAKSHA_VERSION_NAME: ${{ inputs.version_name || vars.ANDROID_VERSION_NAME }}
-          KIDRAKSHA_REQUIRE_SIGNING: "true"
-          KIDRAKSHA_RELEASE_KEYSTORE: ${{ runner.temp }}/kidraksha-release.jks
-          KIDRAKSHA_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KIDRAKSHA_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KIDRAKSHA_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KIDSURAKSHA_API_URL: ${{ inputs.api_url || vars.ANDROID_API_URL }}
+          KIDSURAKSHA_VERSION_CODE: ${{ inputs.version_code || vars.ANDROID_VERSION_CODE }}
+          KIDSURAKSHA_VERSION_NAME: ${{ inputs.version_name || vars.ANDROID_VERSION_NAME }}
+          KIDSURAKSHA_REQUIRE_SIGNING: "true"
+          KIDSURAKSHA_RELEASE_KEYSTORE: ${{ runner.temp }}/kidraksha-release.jks
+          KIDSURAKSHA_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KIDSURAKSHA_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KIDSURAKSHA_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          test -n "$KIDRAKSHA_API_URL" || { echo "Production Android API URL is required" >&2; exit 1; }
-          test -n "$KIDRAKSHA_VERSION_CODE" || { echo "Android version code is required" >&2; exit 1; }
-          test -n "$KIDRAKSHA_VERSION_NAME" || { echo "Android version name is required (set input for manual runs or ANDROID_VERSION_NAME for tag runs)" >&2; exit 1; }
+          test -n "$KIDSURAKSHA_API_URL" || { echo "Production Android API URL is required" >&2; exit 1; }
+          test -n "$KIDSURAKSHA_VERSION_CODE" || { echo "Android version code is required" >&2; exit 1; }
+          test -n "$KIDSURAKSHA_VERSION_NAME" || { echo "Android version name is required (set input for manual runs or ANDROID_VERSION_NAME for tag runs)" >&2; exit 1; }
           ./gradlew clean test lint bundleRelease
           mkdir -p ../../artifacts/android
-          cp app/build/outputs/bundle/release/app-release.aab ../../artifacts/android/KidSuraksha-${KIDRAKSHA_VERSION_NAME}.aab
-          test ! -f app/build/outputs/mapping/release/mapping.txt || cp app/build/outputs/mapping/release/mapping.txt ../../artifacts/android/mapping-${KIDRAKSHA_VERSION_NAME}.txt
+          cp app/build/outputs/bundle/release/app-release.aab ../../artifacts/android/KidSuraksha-${KIDSURAKSHA_VERSION_NAME}.aab
+          test ! -f app/build/outputs/mapping/release/mapping.txt || cp app/build/outputs/mapping/release/mapping.txt ../../artifacts/android/mapping-${KIDSURAKSHA_VERSION_NAME}.txt
 
       - name: Verify AAB
         run: |

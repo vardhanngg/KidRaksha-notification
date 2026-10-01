@@ -1,4 +1,4 @@
-package com.kidraksha.child.device
+package com.kidsuraksha.child.device
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context

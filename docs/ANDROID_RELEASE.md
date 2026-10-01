@@ -1,7 +1,8 @@
 # KidSuraksha Android release
 
 ## Current build identity
-- applicationId: `com.kidraksha.child`
+- applicationId: `com.kidsuraksha.child`
+- namespace: `com.kidsuraksha.child`
 - targetSdk: 36
 - compileSdk: 36
 - minSdk: 28
@@ -18,7 +19,7 @@
 ## Required GitHub production variables
 - `ANDROID_API_URL` — HTTPS API origin
 - `ANDROID_VERSION_CODE` — monotonically increasing integer
-- `ANDROID_VERSION_NAME` — human-readable release version (for example `1.4.0`)
+- `ANDROID_VERSION_NAME` — human-readable version (for example `1.4.0`)
 
 Never commit the keystore or password values. The release workflow reconstructs the keystore only inside the ephemeral CI runner and deletes it when the job ends.
 

@@ -1,13 +1,13 @@
 {
-  "name": "kidraksha",
+  "name": "kidsuraksha",
   "private": true,
   "workspaces": [
     "apps/web",
     "services/api"
   ],
   "scripts": {
-    "api": "npm --workspace @kidraksha/api run dev",
-    "web": "npm --workspace @kidraksha/web run dev",
+    "api": "npm --workspace @kidsuraksha/api run dev",
+    "web": "npm --workspace @kidsuraksha/web run dev",
     "check": "bash scripts/check-product.sh",
     "check:realtime": "bash scripts/check-realtime.sh",
     "check:security": "bash scripts/check-security.sh",

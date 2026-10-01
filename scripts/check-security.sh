@@ -25,7 +25,7 @@ grep -q 'REDIS_URL' "$root/.env.production.example" || fail "production Redis co
 grep -q 'rate-limit-redis' "$root/services/api/package.json" || fail "distributed rate limiter dependency missing"
 grep -q 'DATA_ENCRYPTION_KEY_PREVIOUS' "$root/services/api/src/crypto.js" || fail "key rotation support missing"
 grep -q 'Content-Security-Policy' "$root/apps/web/next.config.mjs" || fail "web CSP missing"
-grep -q 'FLAG_SECURE' "$root/apps/android/app/src/main/java/com/kidraksha/child/ui/MainActivity.kt" || fail "Android screenshot protection missing"
+grep -q 'FLAG_SECURE' "$root/apps/android/app/src/main/java/com/kidsuraksha/child/ui/MainActivity.kt" || fail "Android screenshot protection missing"
 if grep -R -nE 'x-session-token' "$root/services/api/src" >/tmp/kidraksha-session-header.txt 2>/dev/null; then fail "legacy session header still accepted"; fi
 if grep -R -nE 'console\.(log|info|warn|error).*\b(body|title|text)\b' "$root/apps/android/app/src/main/java" >/tmp/kidraksha-sensitive-log.txt 2>/dev/null; then fail "possible sensitive notification logging"; fi
 pass "session + CSRF hardening present"

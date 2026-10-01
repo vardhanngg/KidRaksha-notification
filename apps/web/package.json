@@ -1,5 +1,5 @@
 {
-  "name": "@kidraksha/web",
+  "name": "@kidsuraksha/web",
   "private": true,
   "scripts": {
     "dev": "next dev",

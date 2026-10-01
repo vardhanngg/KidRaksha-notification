@@ -1,14 +1,14 @@
-package com.kidraksha.child.service
+package com.kidsuraksha.child.service
 
 import android.content.ComponentName
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import com.kidraksha.child.data.PendingStore
-import com.kidraksha.child.data.Prefs
-import com.kidraksha.child.data.QueuedNotification
-import com.kidraksha.child.notification.NotificationNormalizer
-import com.kidraksha.child.sync.SyncScheduler
-import com.kidraksha.child.sync.SyncManager
+import com.kidsuraksha.child.data.PendingStore
+import com.kidsuraksha.child.data.Prefs
+import com.kidsuraksha.child.data.QueuedNotification
+import com.kidsuraksha.child.notification.NotificationNormalizer
+import com.kidsuraksha.child.sync.SyncScheduler
+import com.kidsuraksha.child.sync.SyncManager
 import java.util.concurrent.Executors
 
 class NotificationCaptureService : NotificationListenerService() {
