@@ -61,7 +61,7 @@ Create exactly two recurring Razorpay plans for new customers:
 Set their plan IDs as `RAZORPAY_PLAN_WEEKLY` and `RAZORPAY_PLAN_MONTHLY`. The currently created plans are `plan_TiZwqmv6Bf9sRb` (weekly) and `plan_TiZycXcSEyUI4V` (monthly); these are prefilled in `.env.production.example`. Do not configure an annual purchase option. Razorpay subscriptions require a finite `total_count`; KidSuraksha configures 520 weekly cycles and 120 monthly cycles, each approximately 10 years, which is within Razorpay's documented maximum. After a subscription reaches that limit, the customer can start a new subscription. citeturn982280search1turn237988search3
 
 For an existing deployment, `RAZORPAY_PLAN_STARTER` may remain configured temporarily so an existing ₹199/month Starter subscription can still be recognized; it is not exposed as a new purchase option.
-- `API_IMAGE` and `WEB_IMAGE` when using a non-default registry
+- `API_IMAGE` and `WEB_IMAGE` (required by the production Compose file; use `ghcr.io/vardhanngg/kidraksha-api` and `ghcr.io/vardhanngg/kidraksha-web` for the repository's deployment workflow)
 
 Run:
 
@@ -209,13 +209,7 @@ Do not edit or delete applied migration files to roll back. If an application ve
 
 ## Android release
 
-Set the Gradle property exactly as:
-
-```bash
--PKIDRAKSHA_API_URL=https://your-domain.example
-```
-
-The release build fails if this value is missing. Build/sign the AAB outside the source repository and store release artifacts in the CI artifact system or distribution pipeline.
+Configure the Android release workflow's `production` environment variables `ANDROID_API_URL`, `ANDROID_VERSION_CODE`, and `ANDROID_VERSION_NAME`, plus the four `ANDROID_*` signing secrets listed in `docs/ANDROID_RELEASE.md`. The workflow passes `KIDSURAKSHA_API_URL` to Gradle; the release build fails if the HTTPS API URL is missing. Do not use the obsolete `-PKIDRAKSHA_API_URL` property.
 
 ## Final operational checks
 
