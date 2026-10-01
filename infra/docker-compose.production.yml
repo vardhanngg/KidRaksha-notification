@@ -33,7 +33,7 @@ services:
     networks: [backend]
 
   migrate:
-    image: ${API_IMAGE:-ghcr.io/vardhanngg/kidraksha-api}:${IMAGE_TAG:?Set IMAGE_TAG}
+    image: ${API_IMAGE:?Set API_IMAGE}:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: "no"
     environment:
       NODE_ENV: production
@@ -45,7 +45,7 @@ services:
     command: ["node", "scripts/migrate.js"]
 
   api:
-    image: ${API_IMAGE:-ghcr.io/vardhanngg/kidraksha-api}:${IMAGE_TAG:?Set IMAGE_TAG}
+    image: ${API_IMAGE:?Set API_IMAGE}:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: unless-stopped
     init: true
     environment:
@@ -60,8 +60,9 @@ services:
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:?Set RAZORPAY_WEBHOOK_SECRET}
+      RAZORPAY_PLAN_WEEKLY: ${RAZORPAY_PLAN_WEEKLY:-}
+      RAZORPAY_PLAN_MONTHLY: ${RAZORPAY_PLAN_MONTHLY:-}
       RAZORPAY_PLAN_STARTER: ${RAZORPAY_PLAN_STARTER:-}
-      RAZORPAY_PLAN_FAMILY: ${RAZORPAY_PLAN_FAMILY:-}
       SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_SECURE: ${SMTP_SECURE:-false}
@@ -80,7 +81,7 @@ services:
     networks: [backend]
 
   maintenance:
-    image: ${API_IMAGE:-ghcr.io/vardhanngg/kidraksha-api}:${IMAGE_TAG:?Set IMAGE_TAG}
+    image: ${API_IMAGE:?Set API_IMAGE}:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: unless-stopped
     init: true
     environment:
@@ -94,7 +95,7 @@ services:
     command: ["node", "scripts/maintenance.js"]
 
   web:
-    image: ${WEB_IMAGE:-ghcr.io/vardhanngg/kidraksha-web}:${IMAGE_TAG:?Set IMAGE_TAG}
+    image: ${WEB_IMAGE:?Set WEB_IMAGE}:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: unless-stopped
     init: true
     environment:

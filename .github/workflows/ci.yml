@@ -66,6 +66,8 @@ jobs:
           SMTP_FROM: ci@example.com
           TLS_DIR: /tmp/kidraksha-tls
           IMAGE_TAG: ci
+          API_IMAGE: ghcr.io/ci/kidraksha-api
+          WEB_IMAGE: ghcr.io/ci/kidraksha-web
         run: |
           mkdir -p /tmp/kidraksha-tls
           printf 'placeholder' > /tmp/kidraksha-tls/fullchain.pem
