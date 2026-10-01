@@ -93,7 +93,7 @@ jobs:
           sha256sum artifacts/android/*.aab | tee artifacts/android/SHA256SUMS.txt
 
       - name: Upload signed release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: KidSuraksha-android-${{ inputs.version_name || vars.ANDROID_VERSION_NAME }}
           path: artifacts/android/
