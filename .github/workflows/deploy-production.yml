@@ -36,7 +36,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: services/api
           file: services/api/Dockerfile
@@ -44,7 +44,7 @@ jobs:
           tags: |
             ${{ env.API_IMAGE }}:${{ github.event.release.tag_name || inputs.image_tag }}
             ${{ env.API_IMAGE }}:production
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: apps/web
           file: apps/web/Dockerfile
