@@ -85,7 +85,7 @@ const eventStreamLimiter = rateLimiters.eventStreamLimiter;
 
 function validateRuntimeConfig() {
   if (process.env.NODE_ENV !== "production") return;
-  const required = ["DATABASE_URL", "DATA_ENCRYPTION_KEY", "PAIRING_CODE_SECRET", "RAZORPAY_WEBHOOK_SECRET", "PUBLIC_WEB_ORIGIN", "REDIS_URL", "SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"];
+  const required = ["DATABASE_URL", "DATA_ENCRYPTION_KEY", "PAIRING_CODE_SECRET", "PUBLIC_WEB_ORIGIN", "REDIS_URL"];
   const missing = required.filter(key => !process.env[key]);
   if (missing.length) throw new Error(`Missing required production configuration: ${missing.join(", ")}`);
   let key;
@@ -97,8 +97,11 @@ function validateRuntimeConfig() {
     if (previous.length !== 32) throw new Error("DATA_ENCRYPTION_KEY_PREVIOUS must decode to exactly 32 bytes");
   }
   if (process.env.PAIRING_CODE_SECRET.length < 32) throw new Error("PAIRING_CODE_SECRET must be at least 32 characters");
-  if (process.env.RAZORPAY_WEBHOOK_SECRET.length < 16) throw new Error("RAZORPAY_WEBHOOK_SECRET must be at least 16 characters");
-  validateEmailConfig();
+  if (process.env.BILLING_ENABLED !== "false") {
+    if (!process.env.RAZORPAY_WEBHOOK_SECRET) throw new Error("RAZORPAY_WEBHOOK_SECRET is required when billing is enabled");
+    if (process.env.RAZORPAY_WEBHOOK_SECRET.length < 16) throw new Error("RAZORPAY_WEBHOOK_SECRET must be at least 16 characters");
+  }
+  if (process.env.EMAIL_ENABLED !== "false") validateEmailConfig();
   let origin;
   try { origin = new URL(process.env.PUBLIC_WEB_ORIGIN); } catch { throw new Error("PUBLIC_WEB_ORIGIN must be a valid URL"); }
   if (origin.protocol !== "https:") throw new Error("PUBLIC_WEB_ORIGIN must use HTTPS in production");
@@ -250,7 +253,7 @@ app.post("/v1/auth/password-reset/request", authLimiter, async (req, res, next) 
   try {
     const input = z.object({ email: z.string().email().max(200).transform(v => v.trim().toLowerCase()) }).strict().parse(req.body);
     const { rows } = await pool.query("SELECT id,email FROM parents WHERE email=$1", [input.email]);
-    if (rows[0]) {
+    if (rows[0] && process.env.EMAIL_ENABLED !== "false") {
       const token = randomToken(32);
       await tx(async client => {
         await client.query("UPDATE password_reset_tokens SET used_at=now() WHERE parent_id=$1 AND used_at IS NULL", [rows[0].id]);
@@ -850,6 +853,9 @@ app.post("/v1/billing/subscription", parentApiLimiter, requireParent, requireCsr
   let client = null;
   let lockAcquired = false;
   try {
+    if (process.env.BILLING_ENABLED === "false") {
+      return sendError(res, req, 503, "Billing is disabled in this test deployment.", "billing_unavailable");
+    }
     const input = z.object({ planKey: z.enum(["weekly","monthly"]), password: z.string().min(1).max(128) }).parse(req.body);
     const planKey = input.planKey;
     if (!hasRecentReauthentication(req.auth)) {
@@ -1210,6 +1216,7 @@ app.post("/v1/device/notifications", deviceLimiter, requireDevice, requireDevice
 
 async function handleBillingWebhook(req, res) {
   try {
+    if (process.env.BILLING_ENABLED === "false") return res.status(503).send("Billing is disabled");
     const signature = req.header("x-razorpay-signature") || "";
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
     if (!secret) return res.status(503).send("Billing webhook is not configured");
