@@ -317,11 +317,14 @@ class MainActivity : Activity() {
     private fun needsPostNotificationsPermission():Boolean = Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
 
     private fun openNotificationAccess() {
-        val component=ComponentName(this,NotificationCaptureService::class.java)
-        val detailIntent=Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS).apply { putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,component) }
-        try { startActivity(detailIntent) }
-        catch (_:Exception) { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
-        Toast.makeText(this,"Enable KidSuraksha, then return here.",Toast.LENGTH_LONG).show()
+        // Use the standard listener list: some Android builds and hosted emulators
+        // crash when opening the newer per-app detail settings screen.
+        try {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            Toast.makeText(this,"Find KidSuraksha in the list, enable access, then return here.",Toast.LENGTH_LONG).show()
+        } catch (_:Exception) {
+            Toast.makeText(this,"This Android environment cannot open Notification Access settings. Try on a physical Android phone.",Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun openAppNotificationSettings() {
