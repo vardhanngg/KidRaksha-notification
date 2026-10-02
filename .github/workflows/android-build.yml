@@ -67,6 +67,8 @@ jobs:
 
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+        env:
+          KIDSURAKSHA_API_URL: https://kidsuraksha-api.onrender.com
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
