@@ -67,7 +67,9 @@ class ApiClient(private val prefs: Prefs, private val secure: SecureStore) {
     }
 
     private fun request(method: String, path: String, body: JSONObject, token: String? = null): JSONObject {
-        val url = URL(prefs.serverUrl + path)
+        val configuredBase = prefs.serverUrl.trimEnd('/')
+        val apiBase = if (configuredBase.endsWith("/v1")) configuredBase else "$configuredBase/v1"
+        val url = URL(apiBase + path)
         if (!BuildConfig.DEBUG && !url.protocol.equals("https", ignoreCase = true)) {
             throw ApiException(0, "Secure HTTPS connection required")
         }
