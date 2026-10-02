@@ -1,21 +1,30 @@
 FROM node:24.21.0-alpine AS deps
 WORKDIR /app
-COPY package*.json ./
-RUN npm install --no-audit --no-fund && npm cache clean --force
+
+COPY package.json package-lock.json ./
+COPY apps/web/package.json ./apps/web/package.json
+COPY services/api/package.json ./services/api/package.json
+
+RUN npm ci --no-audit --no-fund
 
 FROM node:24.21.0-alpine AS builder
 WORKDIR /app
-ARG PUBLIC_WEB_ORIGIN=http://localhost:3000
-ENV PUBLIC_WEB_ORIGIN=$PUBLIC_WEB_ORIGIN
+
+ARG API_INTERNAL_ORIGIN=http://localhost:4000
+ENV API_INTERNAL_ORIGIN=$API_INTERNAL_ORIGIN
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+
+RUN npm run build --workspace=@kidsuraksha/web
 
 FROM node:24.21.0-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder --chown=node:node /app/.next/standalone ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+
+COPY --from=builder --chown=node:node /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=node:node /app/apps/web/.next/static ./.next/static
+
 USER node
 EXPOSE 3000
 
